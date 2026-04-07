@@ -1,0 +1,25 @@
+{
+  "name": "thevibezmachine",
+  "version": "1.0.0",
+  "description": "MUSIC PLAYER!!",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AyaanAsish/TheVibezMachine.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AyaanAsish/TheVibezMachine/issues"
+  },
+  "homepage": "https://github.com/AyaanAsish/TheVibezMachine#readme",
+  "devDependencies": {
+    "electron": "^41.1.1"
+  }
+}

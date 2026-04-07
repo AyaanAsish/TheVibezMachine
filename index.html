@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Electron App</title>
+</head>
+<body>
+  <h1>Hello from Electron!</h1>
+  <p id="info"></p>
+
+  <script>
+    // You have access to Node.js here
+    const os = require('os')
+    document.getElementById('info').textContent = `Running on ${os.platform()}`
+  </script>
+</body>
+</html>

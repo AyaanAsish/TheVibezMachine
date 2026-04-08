@@ -1,2 +1,2 @@
 MUSIC PLAYER!! 
-to install, run npm install in folder and type npm start
+to install, run ```npm install``` and type ```npm start``` to run app

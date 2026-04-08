@@ -1,4 +1,5 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const path = require('path')
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -6,7 +7,7 @@ function createWindow() {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false  // keep false for simple apps
+	preload: path.join(__dirname, 'preload.js')
     }
   })
 
@@ -14,6 +15,14 @@ function createWindow() {
 }
 
 app.whenReady().then(createWindow)
+
+ipcMain.handle('open-file', async () => {
+  const { filePaths } = await dialog.showOpenDialog({
+    filters: [{ name: 'Audio', extensions: ['mp3', 'flac', 'wav', 'ogg', 'm4a'] }],
+    properties: ['openFile', 'multiSelections']
+  })
+  return filePaths
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

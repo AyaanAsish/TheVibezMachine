@@ -1,0 +1,25 @@
+/* FONTS */
+@font-face {
+    font-family: oswald;
+    src: url('assets/fonts/Oswald-Regular.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: source_serif_4;
+    src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
+}
+
+/* DEFAULT STYLE */
+body {
+    background-color: #483666;
+    font-family: source_serif_4;
+}
+
+h1 {
+    font-family: oswald;
+}
+
+
+p {
+    font-family: source_serif_4;
+}

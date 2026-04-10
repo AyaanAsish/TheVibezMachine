@@ -2,34 +2,17 @@ const TABS = ['library', 'explore', 'visualizer', 'settings']
 const BLADE_W = 46
 let activeTab = 'library'
 
-function initBlades() {
-    const app = document.getElementById('app')
-    TABS.forEach(tab => {
-        const div = document.createElement('div')
-        div.className = 'bladeStrip'
-        div.id = 'blade-' + tab
-
-        const ind = document.createElement('div')
-        ind.className = 'activeIndicator'
-
-        const label = document.createElement('div')
-        label.className = 'bladeLabel'
-        label.textContent = tab[0].toUpperCase() + tab.slice(1)
-
-        div.append(ind, label)
-        div.addEventListener('click', () => switchTab(tab))
-        app.appendChild(div)
-    })
-    positionBlades(false)
-}
+TABS.forEach(tab => {
+    document.getElementById('blade-' + tab)
+        .addEventListener('click', () => switchTab(tab))
+})
 
 function positionBlades(animate) {
     const appWidth = document.getElementById('app').offsetWidth
     const activeIdx = TABS.indexOf(activeTab)
 
     const content = document.getElementById('content')
-    content.classList.toggle('animatingC', animate)
-    content.style.left = (activeIdx * BLADE_W) + 'px'
+    content.style.left  = (activeIdx * BLADE_W) + 'px'
     content.style.right = ((TABS.length - activeIdx - 1) * BLADE_W) + 'px'
 
     TABS.forEach((tab, i) => {
@@ -38,16 +21,33 @@ function positionBlades(animate) {
         blade.classList.toggle('activeBlade', tab === activeTab)
         blade.style.left = i <= activeIdx
             ? (i * BLADE_W) + 'px'
-            : (appWidth - (TABS.length - i - 1) * BLADE_W - BLADE_W) + 'px'
+            : (appWidth - (TABS.length - i) * BLADE_W) + 'px'
     })
 }
 
 function switchTab(newTab) {
     if (newTab === activeTab) return
+
+    // Fade out old content
+    const oldItems = document.querySelector('#' + activeTab + ' .items')
+    if (oldItems) oldItems.classList.remove('items-visible')
+
     document.getElementById(activeTab).classList.remove('active')
-    activeTab = newTab
-    positionBlades(true)
-    setTimeout(() => document.getElementById(newTab).classList.add('active'), 300)
+
+    // After fade out finishes, start blade sweep
+    setTimeout(() => {
+        activeTab = newTab
+        document.getElementById(newTab).classList.add('active')
+        positionBlades(true)
+
+        // After blade sweep finishes, fade in new content
+        setTimeout(() => {
+            const newItems = document.querySelector('#' + newTab + ' .items')
+            if (newItems) newItems.classList.add('items-visible')
+        }, 200)
+    }, 100)
 }
 
-initBlades()
+positionBlades(false)
+const initItems = document.querySelector('#' + activeTab + ' .items')
+if (initItems) initItems.classList.add('items-visible')

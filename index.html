@@ -9,14 +9,41 @@
 <body>
 
 <div id="app">
+
+    <div class="bladeStrip activeBlade" id="blade-library">
+        <div class="activeIndicator"></div>
+        <div class="bladeLabel">Library</div>
+    </div>
+    <div class="bladeStrip" id="blade-explore">
+        <div class="activeIndicator"></div>
+        <div class="bladeLabel">Explore</div>
+    </div>
+    <div class="bladeStrip" id="blade-visualizer">
+        <div class="activeIndicator"></div>
+        <div class="bladeLabel">Visualizer</div>
+    </div>
+    <div class="bladeStrip" id="blade-settings">
+        <div class="activeIndicator"></div>
+        <div class="bladeLabel">Settings</div>
+    </div>
+
     <div id="content">
         <div class="tab active" id="library">
-            <button id="btn-open">Open Files</button>
+            <div class="items">
+                <button id="btn-open">Open Files</button>
+            </div>
         </div>
-        <div class="tab" id="explore"></div>
-        <div class="tab" id="visualizer"></div>
-        <div class="tab" id="settings"></div>
+        <div class="tab" id="explore">
+            <div class="items"></div>
+        </div>
+        <div class="tab" id="visualizer">
+            <div class="items"></div>
+        </div>
+        <div class="tab" id="settings">
+            <div class="items"></div>
+        </div>
     </div>
+
 </div>
 
 <footer>

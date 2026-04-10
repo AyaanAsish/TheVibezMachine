@@ -1,47 +1,49 @@
 <!DOCTYPE html>
 <html>
 
-<!-- HEAD -->
 <head>
-  <title>TheVibezMachine</title>
-  <link href="styles.css" rel="stylesheet"/>
+    <title>TheVibezMachine</title>
+    <link href="styles.css" rel="stylesheet"/>
 </head>
 
-<!-- BODY -->
 <body>
-  <!-- LIBRARY -->
-  <h1>Library</h1>
-  <p>Text</p>
 
-  <!-- PLAYER -->
-  <div id="player">
-    <div id="track-info">
-      <span id="track-name">No track loaded</span>
+<div id="app">
+    <div id="content">
+        <div class="tab active" id="library">
+            <button id="btn-open">Open Files</button>
+        </div>
+        <div class="tab" id="explore"></div>
+        <div class="tab" id="visualizer"></div>
+        <div class="tab" id="settings"></div>
     </div>
+</div>
 
-    <div id="progress-bar">
-      <div id="progress-fill"></div>
+<footer>
+    <div id="player">
+        <div id="track-info">
+            <span id="track-name">No track loaded</span>
+        </div>
+        <div id="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+        <div id="time-row">
+            <span id="current-time">0:00</span>
+            <span id="divider">/</span>
+            <span id="duration">0:00</span>
+        </div>
+        <div id="controls">
+            <button id="btn-prev">⏮</button>
+            <button id="btn-play">▶</button>
+            <button id="btn-next">⏭</button>
+        </div>
+        <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+        <ul id="playlist"></ul>
     </div>
-    <div id="time-row">
-      <span id="current-time">0:00</span>
-      <span id="divider">/</span>
-      <span id="duration">0:00</span>
-    </div>
+</footer>
 
-    <div id="controls">
-      <button id="btn-prev">⏮</button>
-      <button id="btn-play">▶</button>
-      <button id="btn-next">⏭</button>
-    </div>
+<script src="ui.js"></script>
+<script src="player.js"></script>
 
-    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
-
-    <button id="btn-open">Open Files</button>
-
-    <ul id="playlist"></ul>
-  </div>
-
-  <script src="player.js"></script>
 </body>
-
 </html>

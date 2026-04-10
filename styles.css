@@ -11,17 +11,83 @@
     src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
 }
 
-/* DEFAULT STYLE */
-body {
-    background-color: #483666;
-    font-family: source_serif_4;
+#app {
+    width: 100%;
+    height: 700px;
+    background: #483666;
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
 }
 
-h1 {
+#content {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.tab {
+    position: absolute;
+    inset: 0;
+    padding: 24px 22px 24px 56px;
+    overflow-y: auto;
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 1s, transform 1.1s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: none;
+}
+
+.tab.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+.bladeStrip {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 46px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.bladeLabel {
     font-family: oswald;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    writing-mode: vertical-rl;
+    color: #d0b8e8;
+    user-select: none;
 }
 
+#blade-library    { background: #5a3888; }
+#blade-explore    { background: #4a2c78; }
+#blade-visualizer { background: #3a2268; }
+#blade-settings   { background: #2c1a54; }
 
-p {
-    font-family: source_serif_4;
+.activeBlade .bladeLabel { color: #f0d8ff; }
+.animatingC {
+    transition: left 0.5s cubic-bezier(0.4,0,0.2,1), right 0.5s cubic-bezier(0.4,0,0.2,1);
 }
+.animating {
+    transition: left 0.9s cubic-bezier(0.4,0,0.2,1), right 0.9s cubic-bezier(0.4,0,0.2,1);
+}
+
+#btn-open {
+    background: #e4d041; color: #1a1030;
+    border: none; font-family: 'Oswald', sans-serif;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.06em; padding: 7px 18px;
+    border-radius: 20px; cursor: pointer;
+    margin-bottom: 16px; display: inline-block;
+    transition: background 0.15s, transform 0.15s;
+}
+#btn-open:hover { background: #f8e16d; transform: scale(1.03); }

@@ -44,7 +44,7 @@ src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
 .items {
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.1s, visibility 0.1s;
+    transition: opacity 0.15s, visibility 0.15s;
 }
 
 .items.items-visible {

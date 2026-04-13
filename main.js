@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const fs = require('fs')
 const path = require('path')
 
 function createWindow() {
@@ -16,14 +17,23 @@ function createWindow() {
 
 app.whenReady().then(createWindow)
 
-ipcMain.handle('open-file', async () => {
-  const { filePaths } = await dialog.showOpenDialog({
-    filters: [{ name: 'Audio', extensions: ['mp3', 'flac', 'wav', 'ogg', 'm4a'] }],
-    properties: ['openFile', 'multiSelections']
+ipcMain.handle('open-folder', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory']
   })
-  return filePaths
-})
 
+  if (result.canceled) return null
+
+  const folderPath = result.filePaths[0]
+
+  const files = fs.readdirSync(folderPath)
+    .map(f => path.join(folderPath, f))
+
+  return {
+    folder: folderPath,
+    files
+  }
+})
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })

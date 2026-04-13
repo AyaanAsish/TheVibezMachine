@@ -15,7 +15,7 @@ body, html {
     padding: 0;
     width: 100%;
     height: 100%;
-    background-image: radial-gradient(black, #483666);
+    background: black;
     font-family: source_serif_4;
     display: flex;
     flex-direction: column;
@@ -24,7 +24,7 @@ body, html {
 #app {
     display: flex;
     flex: 1; /* Make the app take up remaining space */
-    background: #483666;
+    background-image: radial-gradient(black, #483666);
     position: relative;
     overflow: hidden;
     border-radius: 8px;

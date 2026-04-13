@@ -44,8 +44,8 @@ function switchTab(newTab) {
         setTimeout(() => {
             const newItems = document.querySelector('#' + newTab + ' .items')
             if (newItems) newItems.classList.add('items-visible')
-        }, 200)
-    }, 100)
+        }, 150)
+    }, 50)
 }
 
 positionBlades(false)

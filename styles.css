@@ -1,5 +1,3 @@
-@import "tailwindcss";
-
 /* FONTS */
 @font-face {
 font-family: oswald;
@@ -11,27 +9,40 @@ font-family: source_serif_4;
 src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
 }
 
-#app {
+/* General Styles */
+body, html {
+    margin: 0;
+    padding: 0;
     width: 100%;
-    height: 700px;
+    height: 100%;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+#app {
+    display: flex;
+    flex: 1; /* Make the app take up remaining space */
     background: #483666;
     position: relative;
     overflow: hidden;
     border-radius: 8px;
 }
 
-/* Content area sweeps with the blades */
+/* Content Area */
 #content {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    overflow: hidden;
-    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    width: 100%;
 }
 
+/* Tabs */
 .tab {
-    position: absolute;
-    inset: 0;
+    cursor: pointer;
+    flex-grow: 1;
+    margin-right: 10px;
     padding: 24px 22px 24px 56px;
     overflow-y: auto;
     pointer-events: none;
@@ -41,10 +52,11 @@ src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
     pointer-events: auto;
 }
 
+/* Items Container */
 .items {
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.15s, visibility 0.15s;
+    transition: opacity 0.1s, visibility 0.1s;
 }
 
 .items.items-visible {
@@ -57,7 +69,7 @@ src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 46px;
+    width: 46px; /* Fixed width for blades */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -76,23 +88,58 @@ src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
     user-select: none;
 }
 
-#blade-library    { background: #5a3888; }
-#blade-explore    { background: #4a2c78; }
-#blade-visualizer { background: #3a2268; }
-#blade-settings   { background: #2c1a54; }
+#blade-library {
+    background: #5a3888;
+}
+#blade-explore {
+    background: #4a2c78;
+}
+#blade-visualizer {
+    background: #3a2268;
+}
+#blade-settings {
+    background: #2c1a54;
+}
 
-.activeBlade .bladeLabel { color: #f0d8ff; }
+.activeBlade .bladeLabel {
+    color: #f0d8ff;
+}
 
+/* Animating Blades */
 .animating {
     transition: left 0.2s cubic-bezier(0.4,0,0.2,1);
 }
 
+/* Button Styles */
 #btn-open {
-    background: #e4d041; color: #1a1030;
-    border: none; font-family: 'Oswald', sans-serif;
-    font-size: 13px; font-weight: 600;
-    letter-spacing: 0.06em; padding: 7px 18px;
-    border-radius: 20px; cursor: pointer;
-    margin-bottom: 16px; display: inline-block;
+    background: #e4d041;
+    color: #1a1030;
+    border: none;
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 7px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    margin-bottom: 16px;
+    display: inline-block;
 }
-#btn-open:hover { background: #f8e16d; transform: scale(1.03); }
+#btn-open:hover {
+    background: #f8e16d;
+    transform: scale(1.03);
+}
+
+/* Footer Styles */
+footer {
+    padding: 25px;
+    text-align: center;
+    height: auto; /* Make footer height auto */
+}
+
+/* Media Queries */
+@media (max-width: 600px) {
+    .bladeStrip, #content {
+        width: calc(100% - 46px); /* Adjust for blade width on smaller screens */
+    }
+}

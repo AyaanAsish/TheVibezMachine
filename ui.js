@@ -48,6 +48,13 @@ function switchTab(newTab) {
     }, 50)
 }
 
+// Initial positioning of blades and content
 positionBlades(false)
+
 const initItems = document.querySelector('#' + activeTab + ' .items')
 if (initItems) initItems.classList.add('items-visible')
+
+// Add event listener for window resize
+window.addEventListener('resize', () => {
+    positionBlades(false)
+})

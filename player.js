@@ -2,11 +2,19 @@ const audio = new Audio()
 let queue = []      // array of file paths
 let current = 0    // index into queue
 
-// --- File loading ---
+// --- Folder loading ---
 document.getElementById('btn-open').addEventListener('click', async () => {
-  const paths = await window.electronAPI.openFile()
-  if (!paths.length) return
-  queue = paths
+  const result = await window.electronAPI.openFolder()
+  if (!result || !result.files.length) return
+
+  // filter only audio files
+  const audioExt = ['.mp3', '.wav', '.flac', '.ogg', '.m4a']
+  queue = result.files.filter(f =>
+    audioExt.some(ext => f.toLowerCase().endsWith(ext))
+  )
+
+  if (!queue.length) return
+
   current = 0
   renderPlaylist()
   loadTrack(current)

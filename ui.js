@@ -7,6 +7,21 @@ TABS.forEach(tab => {
         .addEventListener('click', () => switchTab(tab))
 })
 
+document.addEventListener('keydown', (event) => {
+    const i = TABS.indexOf(activeTab);
+    if (i === -1) return;
+
+    if (event.key === 'ArrowLeft') {
+        const next = TABS[i - 1];
+        if (next) switchTab(next);
+    }
+
+    if (event.key === 'ArrowRight') {
+        const next = TABS[i + 1];
+        if (next) switchTab(next);
+    }
+});
+
 function positionBlades(animate) {
     const appWidth = document.getElementById('app').offsetWidth
     const activeIdx = TABS.indexOf(activeTab)

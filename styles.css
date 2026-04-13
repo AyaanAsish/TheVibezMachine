@@ -1,16 +1,17 @@
 /* FONTS */
 @font-face {
-font-family: oswald;
-src: url('assets/fonts/Oswald-Regular.ttf') format('truetype');
+    font-family: oswald;
+    src: url('assets/fonts/Oswald-Regular.ttf') format('truetype');
 }
 
 @font-face {
-font-family: source_serif_4;
-src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
+    font-family: source_serif_4;
+    src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
 }
 
 /* General Styles */
-body, html {
+body,
+html {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -23,7 +24,8 @@ body, html {
 
 #app {
     display: flex;
-    flex: 1; /* Make the app take up remaining space */
+    flex: 1;
+    /* Make the app take up remaining space */
     background-image: radial-gradient(black, #483666);
     position: relative;
     overflow: hidden;
@@ -70,7 +72,10 @@ body, html {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 46px; /* Fixed width for blades */
+    width: 46px;
+    /* Fixed width for blades */
+    border: 4px solid black;
+    background: #b094c7;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -84,37 +89,32 @@ body, html {
     font-size: 15px;
     font-weight: 600;
     letter-spacing: 0.1em;
-    writing-mode: vertical-rl;
-    color: #d0b8e8;
+    writing-mode: sideways-lr;
+    color: black;
+    background: #b094c7;
+    clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 85%);
+    padding: 8;
     user-select: none;
 }
 
-#blade-library {
-    background: #5a3888;
-}
-#blade-explore {
-    background: #4a2c78;
-}
-#blade-visualizer {
-    background: #3a2268;
-}
-#blade-settings {
-    background: #2c1a54;
+
+.activeBlade {
+    background: #483666;
 }
 
 .activeBlade .bladeLabel {
-    color: #f0d8ff;
+    color: white;
 }
 
 /* Animating Blades */
 .animating {
-    transition: left 0.2s cubic-bezier(0.4,0,0.2,1);
+    transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Button Styles */
 #btn-open {
-    background: #e4d041;
-    color: #1a1030;
+    background: #e2c044;
+    color: black;
     border: none;
     font-family: 'Oswald', sans-serif;
     font-size: 13px;
@@ -126,23 +126,29 @@ body, html {
     margin-bottom: 16px;
     display: inline-block;
 }
+
 #btn-open:hover {
-    background: #f8e16d;
+    background: rgb(179, 156, 72);
     transform: scale(1.03);
 }
 
 /* Footer Styles */
 footer {
+    font-family: source_serif_4;
     background-color: black;
     color: white;
-    padding: 25px;
+    padding: 25px 10px 10px 25px;
     text-align: center;
-    height: auto; /* Make footer height auto */
+    height: auto;
+    /* Make footer height auto */
 }
 
 /* Media Queries */
 @media (max-width: 600px) {
-    .bladeStrip, #content {
-        width: calc(100% - 46px); /* Adjust for blade width on smaller screens */
+
+    .bladeStrip,
+    #content {
+        width: calc(100% - 46px);
+        /* Adjust for blade width on smaller screens */
     }
 }

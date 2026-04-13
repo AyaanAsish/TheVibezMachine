@@ -15,7 +15,8 @@ body, html {
     padding: 0;
     width: 100%;
     height: 100%;
-    font-family: Arial, sans-serif;
+    background-image: radial-gradient(black, #483666);
+    font-family: source_serif_4;
     display: flex;
     flex-direction: column;
 }
@@ -132,6 +133,8 @@ body, html {
 
 /* Footer Styles */
 footer {
+    background-color: black;
+    color: white;
     padding: 25px;
     text-align: center;
     height: auto; /* Make footer height auto */

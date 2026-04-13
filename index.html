@@ -1,82 +1,88 @@
 <!DOCTYPE html>
 <html>
 
+<!-- HEAD -->
 <head>
     <title>TheVibezMachine</title>
-    <link href="styles.css" rel="stylesheet"/>
+    <link href="styles.css" rel="stylesheet" />
 </head>
 
+<!-- BODY -->
 <body>
 
-<div id="app">
+    <div id="app">
 
-    <div class="bladeStrip activeBlade" id="blade-library">
-        <div class="activeIndicator"></div>
-        <div class="bladeLabel">Library</div>
-    </div>
-    <div class="bladeStrip" id="blade-explore">
-        <div class="activeIndicator"></div>
-        <div class="bladeLabel">Explore</div>
-    </div>
-    <div class="bladeStrip" id="blade-visualizer">
-        <div class="activeIndicator"></div>
-        <div class="bladeLabel">Visualizer</div>
-    </div>
-    <div class="bladeStrip" id="blade-settings">
-        <div class="activeIndicator"></div>
-        <div class="bladeLabel">Settings</div>
-    </div>
+        <!-- Blades -->
+        <div class="bladeStrip activeBlade" id="blade-library">
+            <div class="activeIndicator"></div>
+            <div class="bladeLabel">Library</div>
+        </div>
+        <div class="bladeStrip" id="blade-explore">
+            <div class="activeIndicator"></div>
+            <div class="bladeLabel">Explore</div>
+        </div>
+        <div class="bladeStrip" id="blade-visualizer">
+            <div class="activeIndicator"></div>
+            <div class="bladeLabel">Visualizer</div>
+        </div>
+        <div class="bladeStrip" id="blade-settings">
+            <div class="activeIndicator"></div>
+            <div class="bladeLabel">Settings</div>
+        </div>
 
-    <div id="content">
-        <div class="tab active" id="library">
-            <div class="items">
+        <!-- Content -->
+        <div id="content">
+            <div class="tab active" id="library">
+                <div class="items">
+                </div>
             </div>
-        </div>
-        <div class="tab" id="explore">
-            <div class="items"></div>
-        </div>
-        <div class="tab" id="visualizer">
-            <div class="items"></div>
-        </div>
-        <div class="tab" id="settings">
-            <div class="items">
-                <div id = "libPath">
-                    <label>Change library path:</label>
-                    <textarea id = "path"></textarea>
-                    <button id = applyPath>Apply Path</button>
-                    <button id="btn-open">Open Files</button>
+            <div class="tab" id="explore">
+                <div class="items"></div>
+            </div>
+            <div class="tab" id="visualizer">
+                <div class="items"></div>
+            </div>
+            <div class="tab" id="settings">
+                <div class="items">
+                    <div id="libPath">
+                        <label>Change library path:</label>
+                        <textarea id="path"></textarea>
+                        <button id=applyPath>Apply Path</button>
+                        <button id="btn-open">Open Files</button>
+                    </div>
                 </div>
             </div>
         </div>
+
     </div>
 
-</div>
+    <!-- Player -->
+    <footer>
+        <div id="player">
+            <div id="track-info">
+                <span id="track-name">No track loaded</span>
+            </div>
+            <div id="progress-bar">
+                <div id="progress-fill"></div>
+            </div>
+            <div id="time-row">
+                <span id="current-time">0:00</span>
+                <span id="divider">/</span>
+                <span id="duration">0:00</span>
+            </div>
+            <div id="controls">
+                <button id="btn-prev">⏮</button>
+                <button id="btn-play">▶</button>
+                <button id="btn-next">⏭</button>
+            </div>
+            <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+            <ul id="playlist"></ul>
+        </div>
+    </footer>
 
-<footer>
-    <div id="player">
-        <div id="track-info">
-            <span id="track-name">No track loaded</span>
-        </div>
-        <div id="progress-bar">
-            <div id="progress-fill"></div>
-        </div>
-        <div id="time-row">
-            <span id="current-time">0:00</span>
-            <span id="divider">/</span>
-            <span id="duration">0:00</span>
-        </div>
-        <div id="controls">
-            <button id="btn-prev">⏮</button>
-            <button id="btn-play">▶</button>
-            <button id="btn-next">⏭</button>
-        </div>
-        <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
-        <ul id="playlist"></ul>
-    </div>
-</footer>
-
-<script src="ui.js"></script>
-<script src="player.js"></script>
+    <script src="ui.js"></script>
+    <script src="player.js"></script>
 
 </body>
+
 </html>

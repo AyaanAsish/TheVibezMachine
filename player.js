@@ -4,8 +4,15 @@ let current = 0
 
 // --- Folder loading ---
 document.getElementById('btn-open').addEventListener('click', async () => {
+  console.log('[player.js] btn-open clicked')
   const result = await window.electronAPI.openFolder()
+  console.log('[player.js] openFolder result:', result)
   if (!result || !result.files.length) return
+
+  // Set the library path and update the path textarea
+  document.getElementById('path').value = result.folder
+  console.log('[player.js] calling setLibraryPath with:', result.folder)
+  window.setLibraryPath(result.folder)
 
   const audioExt = ['.mp3', '.wav', '.flac', '.ogg', '.m4a']
   queue = result.files.filter(f =>
@@ -95,3 +102,12 @@ function fmt(s) {
   const sec = Math.floor(s % 60).toString().padStart(2, '0')
   return `${m}:${sec}`
 }
+
+// --- Settings: Apply Path ---
+document.getElementById('applyPath').addEventListener('click', () => {
+  const pathInput = document.getElementById('path').value.trim()
+  console.log('[player.js] applyPath clicked, input:', pathInput)
+  if (pathInput) {
+    window.setLibraryPath(pathInput)
+  }
+})

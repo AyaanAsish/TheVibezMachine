@@ -21,7 +21,8 @@
   },
   "homepage": "https://github.com/AyaanAsish/TheVibezMachine#readme",
   "devDependencies": {
-    "electron": "^41.1.1"
+    "electron": "^41.1.1",
+    "ws": "^8.20.0"
   },
   "dependencies": {
     "@tailwindcss/cli": "^4.2.2",

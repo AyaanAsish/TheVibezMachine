@@ -152,3 +152,63 @@ footer {
         /* Adjust for blade width on smaller screens */
     }
 }
+
+/* Library - Playlist Cards */
+#library .items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 20px;
+}
+
+.playlist-card {
+    width: 150px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.playlist-card:hover {
+    transform: scale(1.05);
+}
+
+.playlist-cover {
+    width: 150px;
+    height: 150px;
+    background: #2a2a2a;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.playlist-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.playlist-cover .no-cover {
+    font-size: 40px;
+}
+
+.playlist-info {
+    margin-top: 8px;
+    text-align: center;
+}
+
+.playlist-name {
+    color: white;
+    font-size: 14px;
+    font-family: oswald;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.empty-message {
+    color: #888;
+    font-size: 16px;
+    padding: 20px;
+}

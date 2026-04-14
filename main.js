@@ -66,6 +66,6 @@ ipcMain.handle('scan-folder', async (event, folderPath) => {
   }
 })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+app.on('closed', () => {
+  app.quit()
 })

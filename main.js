@@ -7,9 +7,10 @@ function createWindow() {
     width: 800,
     height: 600,
     webPreferences: {
-      nodeIntegration: true,
-	preload: path.join(__dirname, 'preload.js')
-    }
+  	nodeIntegration: false,
+  	contextIsolation: true,
+  	preload: path.join(__dirname, 'preload.js')
+	}
   })
 
   win.loadFile('index.html')
@@ -18,22 +19,14 @@ function createWindow() {
 app.whenReady().then(createWindow)
 
 ipcMain.handle('open-folder', async () => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openDirectory']
-  })
-
-  if (result.canceled) return null
+  const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+  if (result.canceled || !result.filePaths.length) return null
 
   const folderPath = result.filePaths[0]
-
-  const files = fs.readdirSync(folderPath)
-    .map(f => path.join(folderPath, f))
-
-  return {
-    folder: folderPath,
-    files
-  }
+  const files = fs.readdirSync(folderPath).map(f => path.join(folderPath, f))
+  return { files }
 })
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })

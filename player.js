@@ -19,8 +19,11 @@ document.getElementById('btn-open').addEventListener('click', async () => {
 })
 
 function loadTrack(index) {
+	current = index
   audio.src = queue[index]
   audio.play()
+	updateTrackName()
+	hightlightActive()
 }
 
 // --- Controls ---
@@ -70,7 +73,6 @@ function renderPlaylist() {
     const li = document.createElement('li')
     li.textContent = f.split('/').pop()  // just the filename
     li.addEventListener('click', () => {
-      current = i
       loadTrack(current)
     })
     list.appendChild(li)

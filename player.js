@@ -27,10 +27,10 @@ document.getElementById('btn-open').addEventListener('click', async () => {
 
 function loadTrack(index) {
 	current = index
-  audio.src = queue[index]
-  audio.play()
+  	audio.src = queue[index]
+  	audio.play()
 	updateTrackName()
-	hightlightActive()
+	highlightActive()
 }
 
 // --- Controls ---
@@ -49,6 +49,18 @@ document.getElementById('btn-next').addEventListener('click', () => {
 audio.addEventListener('ended', () => {
   if (current < queue.length - 1) loadTrack(current + 1)
 })
+
+function renderPlaylist() {
+  const list = document.getElementById('playlist')
+  if (!list) return
+  list.innerHTML = ''
+  queue.forEach((f, i) => {
+    const li = document.createElement('li')
+    li.textContent = f.split(/[\\/]/).pop()
+    li.addEventListener('click', () => loadTrack(i))  // li and i exist here
+    list.appendChild(li)
+  })
+}
 
 // --- Progress bar ---
 const progressBar = document.getElementById('progress-bar')
@@ -71,20 +83,6 @@ progressBar.addEventListener('click', (e) => {
 document.getElementById('volume').addEventListener('input', (e) => {
   audio.volume = e.target.value
 })
-
-function renderPlaylist() {
-  const list = document.getElementById('playlist')
-  if (!list) return
-  list.innerHTML = ''
-  queue.forEach((f, i) => {
-    const li = document.createElement('li')
-    li.textContent = f.split('/').pop()  // just the filename
-    li.addEventListener('click', () => {
-      loadTrack(current)
-    })
-    list.appendChild(li)
-  })
-}
 
 function highlightActive() {
   document.querySelectorAll('#playlist li').forEach((li, i) => {

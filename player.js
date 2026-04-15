@@ -1,18 +1,23 @@
 const audio = new Audio()
-let queue = []      // array of file paths
-let current = 0    // index into queue
+let queue = []
+let current = 0
 
 // --- Folder loading ---
 document.getElementById('btn-open').addEventListener('click', async () => {
+  console.log('[player.js] btn-open clicked')
   const result = await window.electronAPI.openFolder()
+  console.log('[player.js] openFolder result:', result)
   if (!result || !result.files.length) return
 
-  // filter only audio files
+  // Set the library path and update the path textarea
+  document.getElementById('path').value = result.folder
+  console.log('[player.js] calling setLibraryPath with:', result.folder)
+  window.setLibraryPath(result.folder)
+
   const audioExt = ['.mp3', '.wav', '.flac', '.ogg', '.m4a']
   queue = result.files.filter(f =>
     audioExt.some(ext => f.toLowerCase().endsWith(ext))
   )
-
   if (!queue.length) return
 
   current = 0
@@ -21,12 +26,11 @@ document.getElementById('btn-open').addEventListener('click', async () => {
 })
 
 function loadTrack(index) {
-  current = index
-  // file:// protocol lets the renderer load local files
-  audio.src = 'file://' + queue[index]
-  audio.play()
-  updateTrackName()
-  highlightActive()
+	current = index
+  	audio.src = queue[index]
+  	audio.play()
+	updateTrackName()
+	highlightActive()
 }
 
 // --- Controls ---
@@ -45,6 +49,18 @@ document.getElementById('btn-next').addEventListener('click', () => {
 audio.addEventListener('ended', () => {
   if (current < queue.length - 1) loadTrack(current + 1)
 })
+
+function renderPlaylist() {
+  const list = document.getElementById('playlist')
+  if (!list) return
+  list.innerHTML = ''
+  queue.forEach((f, i) => {
+    const li = document.createElement('li')
+    li.textContent = f.split(/[\\/]/).pop()
+    li.addEventListener('click', () => loadTrack(i))  // li and i exist here
+    list.appendChild(li)
+  })
+}
 
 // --- Progress bar ---
 const progressBar = document.getElementById('progress-bar')
@@ -68,18 +84,6 @@ document.getElementById('volume').addEventListener('input', (e) => {
   audio.volume = e.target.value
 })
 
-// --- Playlist UI ---
-function renderPlaylist() {
-  const ul = document.getElementById('playlist')
-  ul.innerHTML = ''
-  queue.forEach((path, i) => {
-    const li = document.createElement('li')
-    li.textContent = path.split(/[\\/]/).pop()  // just the filename
-    li.addEventListener('click', () => loadTrack(i))
-    ul.appendChild(li)
-  })
-}
-
 function highlightActive() {
   document.querySelectorAll('#playlist li').forEach((li, i) => {
     li.classList.toggle('active', i === current)
@@ -96,3 +100,12 @@ function fmt(s) {
   const sec = Math.floor(s % 60).toString().padStart(2, '0')
   return `${m}:${sec}`
 }
+
+// --- Settings: Apply Path ---
+document.getElementById('applyPath').addEventListener('click', () => {
+  const pathInput = document.getElementById('path').value.trim()
+  console.log('[player.js] applyPath clicked, input:', pathInput)
+  if (pathInput) {
+    window.setLibraryPath(pathInput)
+  }
+})

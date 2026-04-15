@@ -152,6 +152,18 @@ footer {
     /* Make footer height auto */
 }
 
+.controlBtn {
+    color: #e2c044;
+    background: none;
+    border: none;
+    font-size: 18px;
+}
+
+.controlBtn:hover {
+    color: rgb(179, 156, 72);
+    transform: scale(1.03);
+}
+
 /* Media Queries */
 @media (max-width: 600px) {
 

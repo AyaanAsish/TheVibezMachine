@@ -154,7 +154,12 @@ footer {
 }
 
 .sliderBar {
-    background: linear-gradient(to bottom, transparent calc(50% - 2px), #e2c044 50%, #e2c044 calc(50% + 2px), transparent calc(50% + 2px));
+    display: flex;
+    justify-content: center;
+    background: linear-gradient(to bottom, transparent calc(50% - 4px), #e2c044 50%, #e2c044 calc(50% + 2px), transparent calc(50% + 2px));
+    box-sizing: border-box;
+    border-left: #d4b13e solid 4px;
+    border-right: #d4b13e solid 4px;
     width: 10em;
 }
 
@@ -162,7 +167,7 @@ footer {
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
-    width: calc(100% - 6px);
+    width: 100%;
 }
 
 #volume::-webkit-slider-thumb {

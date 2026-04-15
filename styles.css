@@ -143,13 +143,35 @@ html {
 
 /* Footer Styles */
 footer {
+    display: flex;
+    justify-content: center;
     font-family: source_serif_4;
     background-color: black;
     color: white;
     padding: 25px 10px 10px 25px;
     text-align: center;
     height: auto;
-    /* Make footer height auto */
+}
+
+.sliderBar {
+    background: linear-gradient(to bottom, transparent calc(50% - 2px), #e2c044 50%, #e2c044 calc(50% + 2px), transparent calc(50% + 2px));
+    width: 10em;
+}
+
+#volume {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    width: calc(100% - 6px);
+}
+
+#volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 100%;
+  background: #e2c044;
+  cursor: pointer;
 }
 
 .controlBtn {

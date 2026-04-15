@@ -179,6 +179,11 @@ footer {
   cursor: pointer;
 }
 
+#volume::-webkit-slider-thumb:hover {
+  background: rgb(179, 156, 72);
+  transform: scale(1.03);
+}
+
 .controlBtn {
     color: #e2c044;
     background: none;

@@ -122,27 +122,6 @@ html {
   transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Button Styles */
-#btn-open {
-  background: #e2c044;
-  color: black;
-  border: none;
-  font-family: "Oswald", sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  padding: 7px 18px;
-  border-radius: 20px;
-  cursor: pointer;
-  margin-bottom: 16px;
-  display: inline-block;
-}
-
-#btn-open:hover {
-  background: rgb(179, 156, 72);
-  transform: scale(1.03);
-}
-
 /* Footer Styles */
 footer {
   display: flex;

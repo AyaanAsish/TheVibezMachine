@@ -94,9 +94,9 @@ html {
     text-align: center;
     color: black;
     user-select: none;
-    top: 4px;
+    top: 6px;
     width: 100%;
-    height: calc(100% - 8px);
+    height: calc(100% - 12px);
     background: #b094c7;
     clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 85%);
 }
@@ -342,7 +342,7 @@ footer {
 #libPath button {
     background: #e2c044;
     color: black;
-    border: none;
+    border: solid black 4px;
     font-family: 'Oswald', sans-serif;
     font-size: 13px;
     font-weight: 600;

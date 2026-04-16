@@ -206,19 +206,10 @@ footer {
   transform: scale(1.03);
 }
 
-#controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 6px;
-    padding-top: 6px;
-}
-
 .controlBtn {
     color: #e2c044;
     background: none;
     border: none;
-    padding: 0;
     font-size: 18px;
 }
 

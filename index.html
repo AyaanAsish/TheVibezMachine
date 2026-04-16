@@ -1,109 +1,114 @@
 <!doctype html>
 <html>
-  <!-- HEAD -->
-  <head>
+<!-- HEAD -->
+
+<head>
     <title>TheVibezMachine</title>
     <link href="styles.css" rel="stylesheet" />
-  </head>
+</head>
 
-  <!-- BODY -->
-  <body>
+<!-- BODY -->
+
+<body>
     <div id="app">
-      <!-- Blades -->
-      <div class="bladeStrip activeBlade" id="blade-library">
-        <div class="activeIndicator"></div>
-        <div class="labelBorder">
-          <div class="bladeLabel">Library</div>
-        </div>
-      </div>
-      <div class="bladeStrip" id="blade-explore">
-        <div class="activeIndicator"></div>
-        <div class="labelBorder">
-          <div class="bladeLabel">Explore</div>
-        </div>
-      </div>
-      <div class="bladeStrip" id="blade-visualizer">
-        <div class="activeIndicator"></div>
-        <div class="labelBorder">
-          <div class="bladeLabel">Visualizer</div>
-        </div>
-      </div>
-      <div class="bladeStrip" id="blade-settings">
-        <div class="activeIndicator"></div>
-        <div class="labelBorder">
-          <div class="bladeLabel">Settings</div>
-        </div>
-      </div>
-
-      <!-- Content -->
-      <div id="content">
-        <!-- Library -->
-        <div class="tab active" id="library">
-          <div class="items"></div>
-        </div>
-
-        <!-- Explore -->
-        <div class="tab" id="explore">
-          <div class="items"></div>
-        </div>
-
-        <!-- Visualizer-->
-        <div class="tab" id="visualizer">
-          <div class="items"></div>
-        </div>
-
-        <!-- Settings -->
-        <div class="tab" id="settings">
-          <div class="items">
-            <div id="libPath">
-              <label>Change library path:</label>
-              <textarea id="path"></textarea>
-              <button id="applyPath">Apply Path</button>
-              <button id="btn-open">Open Files</button>
+        <!-- Blades -->
+        <div class="bladeStrip activeBlade" id="blade-library">
+            <div class="activeIndicator"></div>
+            <div class="labelBorder">
+                <div class="bladeLabel">Library</div>
             </div>
-          </div>
         </div>
-      </div>
+        <div class="bladeStrip" id="blade-explore">
+            <div class="activeIndicator"></div>
+            <div class="labelBorder">
+                <div class="bladeLabel">Explore</div>
+            </div>
+        </div>
+        <div class="bladeStrip" id="blade-visualizer">
+            <div class="activeIndicator"></div>
+            <div class="labelBorder">
+                <div class="bladeLabel">Visualizer</div>
+            </div>
+        </div>
+        <div class="bladeStrip" id="blade-settings">
+            <div class="activeIndicator"></div>
+            <div class="labelBorder">
+                <div class="bladeLabel">Settings</div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div id="content">
+            <!-- Library -->
+            <div class="tab active" id="library">
+                <div class="items"></div>
+            </div>
+
+            <!-- Explore -->
+            <div class="tab" id="explore">
+                <div class="items"></div>
+            </div>
+
+            <!-- Visualizer-->
+            <div class="tab" id="visualizer">
+                <div class="items"></div>
+            </div>
+
+            <!-- Settings -->
+            <div class="tab" id="settings">
+                <div class="items">
+                    <div id="libPath">
+                        <label>Change library path:</label>
+                        <textarea id="path"></textarea>
+                        <button id="applyPath">Apply Path</button>
+                        <button id="btn-open">Open Files</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Player -->
     <footer>
-      <div id="player">
-        <div id="track-info">
-          <span id="track-name">No track loaded</span>
+        <div id="player">
+
+            <!-- Track -->
+            <div id="track-info">
+                <span id="track-name">No track loaded</span>
+            </div>
+
+            <!-- Progress Bar -->
+            <div id="progress-bar">
+                <div id="progress-fill"></div>
+            </div>
+
+            <!-- Controls -->
+            <div id="controls">
+                <button class="controlBtn" id="btn-prev">⏮</button>
+                <!-- Duration -->
+                <div id="time-row">
+                    <span id="current-time">0:00</span>
+                    <span>/</span>
+                    <span id="duration">0:00</span>
+                </div>
+                <button class="controlBtn" id="btn-play">▶</button>
+                <button class="controlBtn" id="btn-next">⏭</button>
+            </div>
+
+            <!-- Volume -->
+            <div id="volume-container">
+                <button id="btn-mute"></button>
+                <div class="sliderBar">
+                    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+                </div>
+            </div>
         </div>
-        <div id="progress-bar">
-          <div id="progress-fill"></div>
-        </div>
-        <div id="time-row">
-          <span id="current-time">0:00</span>
-          <span>/</span>
-          <span id="duration">0:00</span>
-        </div>
-        <div id="controls">
-          <button class="controlBtn" id="btn-prev">⏮</button>
-          <button class="controlBtn" id="btn-play">▶</button>
-          <button class="controlBtn" id="btn-next">⏭</button>
-        </div>
-        <div id="volume-container">
-          <button id="btn-mute"></button>
-          <div class = "sliderBar">
-            <input
-              type="range"
-              id="volume"
-              min="0"
-              max="1"
-              step="0.01"
-              value="1"
-            />
-          </div>
-        </div>
-      </div>
     </footer>
 
     <!-- Scripts -->
     <script src="ui.js"></script>
     <script src="library.js"></script>
     <script src="player.js"></script>
-  </body>
+</body>
+
 </html>

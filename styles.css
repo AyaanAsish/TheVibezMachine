@@ -96,9 +96,9 @@ html {
   text-align: center;
   color: black;
   user-select: none;
-  top: 4px;
+  top: 6px;
   width: 100%;
-  height: calc(100% - 8px);
+  height: calc(100% - 12px);
   background: #b094c7;
   clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 85%);
 }
@@ -214,10 +214,19 @@ footer {
   transform: scale(1.03);
 }
 
+#controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 6px;
+    padding-top: 6px;
+}
+
 .controlBtn {
   color: #e2c044;
   background: none;
   border: none;
+  padding: 0;
   font-size: 18px;
 }
 
@@ -334,7 +343,7 @@ footer {
 #libPath button {
   background: #e2c044;
   color: black;
-  border: none;
+  border: solid black 4px;
   font-family: "Oswald", sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -342,9 +351,7 @@ footer {
   padding: 10px 20px;
   border-radius: 20px;
   cursor: pointer;
-  transition:
-    transform 0.2s,
-    background 0.2s;
+  transition: transform 0.2s, background 0.2s;
 }
 
 #libPath button:hover {

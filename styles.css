@@ -153,12 +153,6 @@ footer {
     height: auto;
 }
 
-.player {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-}   
-
 #volume-container {
     display: flex;
     justify-content: center;
@@ -225,7 +219,7 @@ footer {
     background: none;
     border: none;
     padding: 0;
-    font-size: 28px;
+    font-size: 18px;
 }
 
 .controlBtn:hover {

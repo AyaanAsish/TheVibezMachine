@@ -1,16 +1,21 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron')
 const fs = require('fs')
 const path = require('path')
 
 function createWindow() {
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width, height } = primaryDisplay.workAreaSize
+
   const win = new BrowserWindow({
-    width: 1500,
-    height: 900,
+    width: width,
+    height: height,
+    minWidth: 400,
+    minHeight: 300,
     webPreferences: {
-  	nodeIntegration: false,
-  	contextIsolation: true,
-  	preload: path.join(__dirname, 'preload.js')
-	}
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
+    }
   })
 
   win.loadFile('index.html')

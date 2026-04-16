@@ -188,6 +188,10 @@ footer {
   border: none;
 }
 
+#btn-mute.muted {
+  background-image: url("assets/images/volume_off.png");
+}
+
 #btn-mute:hover {
   background-image: url("assets/images/volume_on_hover.png");
   transform: scale(1.03);
@@ -364,4 +368,3 @@ footer {
 #applyPath:hover {
   background: #5a467d;
 }
-

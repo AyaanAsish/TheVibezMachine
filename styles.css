@@ -41,6 +41,7 @@ html {
   position: relative;
   height: 100%;
   transition: none;
+  overflow: hidden;
 }
 
 /* Tabs */
@@ -49,7 +50,7 @@ html {
   flex-grow: 1;
   margin-right: 10px;
   padding: 24px 22px 24px 56px;
-  overflow-y: auto;
+  overflow: hidden;
   pointer-events: none;
   visibility: hidden;
   position: absolute;
@@ -57,6 +58,8 @@ html {
   right: 0;
   top: 0;
   bottom: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .tab.active {
@@ -73,9 +76,9 @@ html {
 .items {
   opacity: 0;
   visibility: hidden;
-  transition:
-    opacity 0.1s,
-    visibility 0.1s;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .items.items-visible {
@@ -131,7 +134,7 @@ html {
   background: #483666;
 }
 
-/* Animating Blades */
+
 .animating {
   transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -224,7 +227,6 @@ footer {
   .bladeStrip,
   #content {
     width: calc(100% - 46px);
-    /* Adjust for blade width on smaller screens */
   }
 }
 
@@ -427,7 +429,8 @@ footer {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  height: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 #libPath {

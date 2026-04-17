@@ -49,17 +49,17 @@ function switchTab(newTab) {
 
     document.getElementById(activeTab).classList.remove('active')
 
-    // Switch tab immediately - no blade animation
+    // Start blade slide animation
     setTimeout(() => {
         activeTab = newTab
         document.getElementById(newTab).classList.add('active')
-        positionBlades(false)
+        positionBlades(true)
 
-        // Fade in new content
+        // After blade sweep finishes, fade in new content
         setTimeout(() => {
             const newItems = document.querySelector('#' + newTab + ' .items')
             if (newItems) newItems.classList.add('items-visible')
-        }, 50)
+        }, 100)
     }, 50)
 }
 

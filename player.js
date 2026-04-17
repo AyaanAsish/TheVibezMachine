@@ -49,6 +49,8 @@ document.getElementById("btn-next").addEventListener("click", () => {
 let previousVolume = 1;
 
 document.getElementById("btn-mute").addEventListener("click", () => {
+  const btn = document.getElementById("btn-mute");
+  btn.classList.toggle("muted");
   if (audio.volume > 0) {
     previousVolume = audio.volume;
     audio.volume = 0;

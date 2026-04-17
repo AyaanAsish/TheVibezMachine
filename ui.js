@@ -59,7 +59,7 @@ function switchTab(newTab) {
         setTimeout(() => {
             const newItems = document.querySelector('#' + newTab + ' .items')
             if (newItems) newItems.classList.add('items-visible')
-        }, 100)
+        }, 50)
     }, 50)
 }
 

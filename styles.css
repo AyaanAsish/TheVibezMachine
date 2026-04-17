@@ -191,6 +191,11 @@ footer {
   transform: scale(1.03);
 }
 
+#btn-mute.muted:hover {
+  background-image: url("assets/images/volume_off_hover.png");
+  transform: scale(1.03);
+}
+
 #volume {
     -webkit-appearance: none;
     appearance: none;
@@ -462,7 +467,7 @@ footer {
 }
 
 #libPath textarea {
-    height: 24px;
+    height: 20px;
     text-align: center;
     background: #b094c7;
     color: white;

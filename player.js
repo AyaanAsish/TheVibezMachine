@@ -54,8 +54,10 @@ document.getElementById("btn-mute").addEventListener("click", () => {
   if (audio.volume > 0) {
     previousVolume = audio.volume;
     audio.volume = 0;
+    document.getElementById("btn-mute").style.backgroundImage = "url('assets/images/volume_off.png')";
   } else {
     audio.volume = previousVolume;
+    document.getElementById("btn-mute").style.backgroundImage = "url('assets/images/volume_on.png')";
   }
 });
 

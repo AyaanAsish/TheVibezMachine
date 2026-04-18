@@ -26,11 +26,14 @@ document.getElementById("btn-open").addEventListener("click", async () => {
 });
 
 function loadTrack(index) {
+  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
   current = index;
-  audio.src = queue[index];
-  audio.play();
-  updateTrackName();
-  highlightActive();
+  if (activeQueue.length > 0) {
+    audio.src = activeQueue[index];
+    audio.play();
+    updateTrackName();
+    highlightActive();
+  }
 }
 
 // --- Controls ---
@@ -39,11 +42,13 @@ document.getElementById("btn-play").addEventListener("click", () => {
 });
 
 document.getElementById("btn-prev").addEventListener("click", () => {
+  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
   if (current > 0) loadTrack(current - 1);
 });
 
 document.getElementById("btn-next").addEventListener("click", () => {
-  if (current < queue.length - 1) loadTrack(current + 1);
+  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
 
 let previousVolume = 1;
@@ -60,7 +65,8 @@ document.getElementById("btn-mute").addEventListener("click", () => {
 });
 
 audio.addEventListener("ended", () => {
-  if (current < queue.length - 1) loadTrack(current + 1);
+  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
 
 function renderPlaylist() {
@@ -98,13 +104,20 @@ document.getElementById("volume").addEventListener("input", (e) => {
 });
 
 function highlightActive() {
+  // Highlight footer playlist
   document.querySelectorAll("#playlist li").forEach((li, i) => {
+    li.classList.toggle("active", i === current);
+  });
+
+  // Highlight library tracklist
+  document.querySelectorAll(".tracklist-item").forEach((li, i) => {
     li.classList.toggle("active", i === current);
   });
 }
 
 function updateTrackName() {
-  const name = queue[current].split(/[\\/]/).pop();
+  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  const name = activeQueue[current]?.split(/[\\/]/).pop() || "No track loaded";
   document.getElementById("track-name").textContent = name;
 }
 
@@ -124,3 +137,33 @@ document.getElementById("applyPath").addEventListener("click", () => {
     window.setLibraryPath(pathInput);
   }
 });
+
+// --- Expose for library.js ---
+window.playerAudio = audio;
+window.currentTrackIndex = current;
+
+window.loadPlayerTrack = (index) => {
+  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  current = index;
+  window.currentTrackIndex = index;
+  if (activeQueue.length > 0) {
+    audio.src = activeQueue[index];
+    audio.play();
+    updateTrackName();
+    highlightActive();
+  }
+};
+
+window.renderPlaylist = function() {
+  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  window.playerQueue = activeQueue;
+  const list = document.getElementById("playlist");
+  if (!list) return;
+  list.innerHTML = "";
+  activeQueue.forEach((f, i) => {
+    const li = document.createElement("li");
+    li.textContent = f.split("/").pop();
+    li.addEventListener("click", () => loadTrack(i));
+    list.appendChild(li);
+  });
+};

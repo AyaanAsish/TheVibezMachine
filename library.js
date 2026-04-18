@@ -10,6 +10,9 @@ async function loadLibrary() {
     return
   }
 
+  // Remove tracklist view class
+  container.classList.remove('in-tracklist-view')
+
   // Clear playlist view if any
   if (albumInfo) albumInfo.innerHTML = ''
   container.innerHTML = ''
@@ -82,17 +85,27 @@ function loadPlaylist(name, audioFiles, coverImage) {
 
   if (!tracklistContainer || !albumInfo) return
 
+  tracklistContainer.classList.add('in-tracklist-view')
+
   // Show tracklist on left (65%)
   tracklistContainer.innerHTML = ''
 
-  // Add back button
+  // Add back button wrapper
+  const backBtnWrapper = document.createElement('div')
+  backBtnWrapper.style.flexShrink = '0'
   const backBtn = document.createElement('div')
   backBtn.className = 'library-back-btn'
-  backBtn.innerHTML = '← Back to Library'
+  backBtn.textContent = '← Back to Library'
   backBtn.addEventListener('click', () => {
     loadLibrary()
   })
-  tracklistContainer.appendChild(backBtn)
+  backBtnWrapper.appendChild(backBtn)
+  tracklistContainer.appendChild(backBtnWrapper)
+
+  // Add tracks wrapper
+  const tracksWrapper = document.createElement('div')
+  tracksWrapper.style.flex = '1'
+  tracksWrapper.style.overflowY = 'auto'
 
   audioFiles.forEach((file, index) => {
     const track = document.createElement('div')
@@ -102,8 +115,10 @@ function loadPlaylist(name, audioFiles, coverImage) {
     track.addEventListener('click', () => {
       playTrack(index)
     })
-    tracklistContainer.appendChild(track)
+    tracksWrapper.appendChild(track)
   })
+
+  tracklistContainer.appendChild(tracksWrapper)
 
   // Show album info on right (35%)
   albumInfo.innerHTML = ''

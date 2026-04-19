@@ -21,14 +21,10 @@
   },
   "homepage": "https://github.com/AyaanAsish/TheVibezMachine#readme",
   "devDependencies": {
-    "electron": "^41.1.1",
-    "ws": "^8.20.0"
+    "electron": "^41.1.1"
   },
   "dependencies": {
-    "@tailwindcss/cli": "^4.2.2",
     "butterchurn": "^2.6.7",
-    "butterchurn-presets": "^2.4.7",
-    "sqlite": "^5.1.1",
-    "tailwindcss": "^4.2.2"
+    "butterchurn-presets": "^2.4.7"
   }
 }

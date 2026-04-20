@@ -320,7 +320,7 @@ footer {
 /* Library - 65-35 Split */
 .library-content {
   display: flex;
-  width: 100%;
+  width: calc(100% - 138px);
   height: 100%;
   justify-content: space-between;
 }
@@ -462,6 +462,7 @@ footer {
   justify-content: center;
   align-items: flex-start;
   min-height: 100%;
+  width: calc(100% - 138px);
   box-sizing: border-box;
 }
 

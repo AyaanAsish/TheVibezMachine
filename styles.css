@@ -32,6 +32,10 @@ html {
     border-radius: 8px;
 }
 
+.keyword {
+  color: #e2c044;
+}
+
 /* Content Area */
 #content {
   display: flex;
@@ -320,7 +324,7 @@ footer {
 /* Library - 65-35 Split */
 .library-content {
   display: flex;
-  width: calc(100% - 138px);
+  width: calc(100% - 138px); /* Accounts for blade width */
   height: 100%;
   justify-content: space-between;
 }
@@ -462,7 +466,7 @@ footer {
   justify-content: center;
   align-items: flex-start;
   min-height: 100%;
-  width: calc(100% - 138px);
+  width: calc(100% - 138px); /* Accounts for blade width */
   box-sizing: border-box;
 }
 

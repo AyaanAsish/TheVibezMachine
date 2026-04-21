@@ -49,6 +49,11 @@ html {
   box-sizing: border-box;
 }
 
+#content.in-tracklist-view {
+  padding-right: 20px;
+}
+
+
 /* Tabs */
 .tab {
   cursor: pointer;
@@ -71,6 +76,7 @@ html {
   pointer-events: auto;
   visibility: visible;
   position: relative;
+  overflow: hidden;
 }
 
 /* Items Container */
@@ -317,6 +323,7 @@ footer {
   gap: 40px;
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
   width: calc(100% - 138px);
   height: 100%;
 }
@@ -325,8 +332,9 @@ footer {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  padding: 0;
-  overflow: hidden;
+  padding: 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .library-content::-webkit-scrollbar {
@@ -352,7 +360,7 @@ footer {
   flex: 55;
   padding: 20px;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   min-width: 250px;
   display: flex;
   flex-direction: column;
@@ -379,11 +387,10 @@ footer {
 
 .library-tracklist.in-tracklist-view {
   border-right: 2px solid rgba(255, 255, 255, 0.1);
-  flex: 0 0 65%;
 }
 
 .library-album-info {
-  flex: 0 0 35%;
+  flex: 45;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -391,6 +398,7 @@ footer {
   justify-content: flex-start;
   min-width: 250px;
   overflow-y: auto;
+  overflow-x: auto;
 }
 
 .library-album-info::-webkit-scrollbar {
@@ -414,7 +422,7 @@ footer {
 .tracksWrapper {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: visible;
   min-height: 0;
 }
 

@@ -2,9 +2,6 @@ const { app, BrowserWindow, ipcMain, dialog, screen } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width, height } = primaryDisplay.workAreaSize;

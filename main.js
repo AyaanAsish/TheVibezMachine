@@ -1,16 +1,10 @@
-<<<<<<< HEAD
-const { app, BrowserWindow, ipcMain, dialog, screen } = require("electron");
-const fs = require("fs");
-const path = require("path");
-=======
-import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import { app, BrowserWindow, ipcMain, dialog, screen } from "electron";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
->>>>>>> d0890040956ebeef3d4c9e479d490157fdba8717
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();

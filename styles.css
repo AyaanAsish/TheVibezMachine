@@ -326,6 +326,7 @@ footer {
   flex-direction: row;
   justify-content: space-between;
   padding: 0;
+  overflow: hidden;
 }
 
 .library-content::-webkit-scrollbar {
@@ -351,6 +352,7 @@ footer {
   flex: 55;
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
   min-width: 250px;
   display: flex;
   flex-direction: column;
@@ -412,6 +414,7 @@ footer {
 .tracksWrapper {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
 }
 

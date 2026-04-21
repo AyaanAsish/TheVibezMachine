@@ -5,6 +5,7 @@ async function loadLibrary() {
   console.log('[library.js] loadLibrary called, libraryPath:', libraryPath)
   const container = document.querySelector('#library .library-tracklist')
   const albumInfo = document.querySelector('#library .library-album-info')
+  const libraryContent = document.querySelector('#library .library-content')
   if (!container) {
     console.log('[library.js] container not found!')
     return
@@ -12,6 +13,7 @@ async function loadLibrary() {
 
   // Remove tracklist view class
   container.classList.remove('in-tracklist-view')
+  libraryContent.classList.remove('in-tracklist-view')
 
   // Clear playlist view if any
   if (albumInfo) albumInfo.innerHTML = ''
@@ -63,7 +65,8 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
 
   const info = document.createElement('div')
   info.className = 'playlist-info'
-  info.innerHTML = `<span class="playlist-name">${name.split('-')[0]}</span><span class="playlist-artist">${name.split('-')[1]}</span>`
+  const artistName = name.split('-')[1] || 'No Author'
+  info.innerHTML = `<span class="playlist-name">${name.split('-')[0]}</span><span class="playlist-artist">${artistName}</span>`
 
   card.appendChild(coverImg)
   card.appendChild(info)
@@ -82,10 +85,12 @@ function loadPlaylist(name, audioFiles, coverImage) {
 
   const tracklistContainer = document.querySelector('#library .library-tracklist')
   const albumInfo = document.querySelector('#library .library-album-info')
+  const libraryContent = document.querySelector('#library .library-content')
 
   if (!tracklistContainer || !albumInfo) return
 
   tracklistContainer.classList.add('in-tracklist-view')
+  libraryContent.classList.add('in-tracklist-view')
 
   // Show tracklist on left (65%)
   tracklistContainer.innerHTML = ''
@@ -104,6 +109,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
 
   // Add tracks wrapper
   const tracksWrapper = document.createElement('div')
+  tracksWrapper.className = 'tracksWrapper'
   tracksWrapper.style.flex = '1'
   tracksWrapper.style.overflowY = 'auto'
 

@@ -1,35 +1,35 @@
 /* FONTS */
 @font-face {
-    font-family: oswald;
-    src: url("assets/fonts/Oswald-Regular.ttf") format("truetype");
+  font-family: oswald;
+  src: url("assets/fonts/Oswald-Regular.ttf") format("truetype");
 }
 
 @font-face {
-    font-family: source_serif_4;
-    src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
+  font-family: source_serif_4;
+  src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
 }
 
 /* General Styles */
 body,
 html {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    background: black;
-    font-family: source_serif_4;
-    display: flex;
-    flex-direction: column;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: black;
+  font-family: source_serif_4;
+  display: flex;
+  flex-direction: column;
 }
 
 #app {
-    display: flex;
-    flex: 1;
-    /* Make the app take up remaining space */
-    background-image: radial-gradient(black, #483666);
-    position: relative;
-    overflow: hidden;
-    border-radius: 8px;
+  display: flex;
+  flex: 1;
+  /* Make the app take up remaining space */
+  background-image: radial-gradient(black, #483666);
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
 }
 
 .keyword {
@@ -89,93 +89,119 @@ html {
 }
 
 .items.items-visible {
-    opacity: 1;
-    visibility: visible;
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Blades */
 .bladeStrip {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 46px;
-    /* Fixed width for blades */
-    border: 4px solid black;
-    background: #b094c7;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 2;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 46px;
+  /* Fixed width for blades */
+  border: 4px solid black;
+  background: #b094c7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
 }
 
 .bladeLabel {
-    position: absolute;
-    background: #b094c7;
-    color: black;
-    font-family: oswald;
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    writing-mode: sideways-lr;
-    text-align: center;
-    user-select: none;
-    top: 6px;
-    width: 100%;
-    height: calc(100% - 12px);
-    clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 85%);
+  position: absolute;
+  background: #b094c7;
+  color: black;
+  font-family: oswald;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  writing-mode: sideways-lr;
+  text-align: center;
+  user-select: none;
+  top: 6px;
+  width: 100%;
+  height: calc(100% - 12px);
+  clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 85%);
 }
 
 .labelBorder {
-    display: inline-block;
-    position: relative;
-    width: 100%;
-    height: 50%;
-    background: black;
-    clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 85%);
+  display: inline-block;
+  position: relative;
+  width: 100%;
+  height: 50%;
+  background: black;
+  clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 85%);
 }
 
 .activeBlade .bladeLabel {
-    color: white;
-    background: #483666;
+  color: white;
+  background: #483666;
 }
 
 
 .animating {
-    transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Footer Styles */
 footer {
-    display: flex;
-    justify-content: center;
-    font-family: source_serif_4;
-    background-color: black;
-    color: white;
-    padding: 25px 10px 10px 25px;
-    text-align: center;
-    height: auto;
+  display: flex;
+  justify-content: center;
+  font-family: source_serif_4;
+  background-color: black;
+  color: white;
+  padding: 25px 10px 10px 25px;
+  text-align: center;
+  height: auto;
 }
 
+#track-info {
+  width: 12em;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+#track-name {
+  display: inline-block;
+  width: 100%;
+}
+
+.scroll-animation {
+  animation: animate_text 20s linear infinite;
+}
+
+@keyframes animate_text {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+
 #volume-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .sliderBar {
-    display: flex;
-    justify-content: center;
-    background: linear-gradient(to bottom,
-            transparent calc(50% - 4px),
-            #e2c044 50%,
-            #e2c044 calc(50% + 2px),
-            transparent calc(50% + 2px));
-    box-sizing: border-box;
-    border-left: #d4b13e solid 4px;
-    border-right: #d4b13e solid 4px;
-    width: 10em;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(to bottom,
+      transparent calc(50% - 4px),
+      #e2c044 50%,
+      #e2c044 calc(50% + 2px),
+      transparent calc(50% + 2px));
+  box-sizing: border-box;
+  border-left: #d4b13e solid 4px;
+  border-right: #d4b13e solid 4px;
+  width: 10em;
 }
 
 #btn-mute {
@@ -204,102 +230,102 @@ footer {
 }
 
 #volume {
-    -webkit-appearance: none;
-    appearance: none;
-    background: transparent;
-    width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  width: 100%;
 }
 
 #volume::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    height: 16px;
-    width: 16px;
-    border-radius: 100%;
-    background: #e2c044;
-    cursor: pointer;
+  -webkit-appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 100%;
+  background: #e2c044;
+  cursor: pointer;
 }
 
 #volume::-webkit-slider-thumb:hover {
-    background: #d4b13e;
-    transform: scale(1.03);
+  background: #d4b13e;
+  transform: scale(1.03);
 }
 
 #controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 6px;
-    padding-top: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 6px;
+  padding-top: 6px;
 }
 
 .controlBtn {
-    color: #e2c044;
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: 18px;
+  color: #e2c044;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 18px;
 }
 
 .controlBtn:hover {
-    color: #d4b13e;
-    transform: scale(1.03);
+  color: #d4b13e;
+  transform: scale(1.03);
 }
 
 /* Media Queries */
 @media (max-width: 600px) {
 
-    .bladeStrip,
-    #content {
-        width: calc(100% - 46px);
-        /* Adjust for blade width on smaller screens */
-    }
+  .bladeStrip,
+  #content {
+    width: calc(100% - 46px);
+    /* Adjust for blade width on smaller screens */
+  }
 }
 
 .playlist-card {
-    width: 150px;
-    cursor: pointer;
-    transition: transform 0.2s;
+  width: 150px;
+  cursor: pointer;
+  transition: transform 0.2s;
 }
 
 .playlist-card:hover {
-    transform: scale(1.05);
+  transform: scale(1.05);
 }
 
 .playlist-cover {
-    width: 150px;
-    height: 150px;
-    background: #2a2a2a;
-    border-radius: 8px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  width: 150px;
+  height: 150px;
+  background: #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .playlist-cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .playlist-cover .no-cover {
-    font-size: 40px;
+  font-size: 40px;
 }
 
 .playlist-info {
-    margin-top: 14px;
-    text-align: center;
-    margin-bottom: 12px;
+  margin-top: 14px;
+  text-align: center;
+  margin-bottom: 12px;
 }
 
 .playlist-name {
-    color: white;
-    font-size: 14px;
-    font-family: oswald;
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  color: white;
+  font-size: 14px;
+  font-family: oswald;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .playlist-artist {
@@ -311,9 +337,9 @@ footer {
 }
 
 .empty-message {
-    color: #888;
-    font-size: 16px;
-    padding: 20px;
+  color: #888;
+  font-size: 16px;
+  padding: 20px;
 }
 
 /* Library - 65-35 Split */
@@ -468,7 +494,7 @@ footer {
   align-items: center;
   padding: 10px 15px;
   cursor: pointer;
-  border-radius: 4px; 
+  border-radius: 4px;
   transition: background 0.2s;
   flex-shrink: 0;
 }
@@ -559,7 +585,8 @@ footer {
   justify-content: center;
   align-items: flex-start;
   min-height: 100%;
-  width: calc(100% - 138px); /* Accounts for blade width */
+  width: calc(100% - 138px);
+  /* Accounts for blade width */
   box-sizing: border-box;
 }
 
@@ -572,62 +599,62 @@ footer {
 }
 
 #libPath label {
-    color: white;
-    font-family: oswald;
-    font-size: 16px;
-    letter-spacing: 0.05em;
+  color: white;
+  font-family: oswald;
+  font-size: 16px;
+  letter-spacing: 0.05em;
 }
 
 #libPath textarea {
-    height: 20px;
-    text-align: center;
-    background: #b094c7;
-    color: white;
-    border: 4px solid #483666;
-    border-radius: 20px;
-    padding: 10px;
-    font-family: monospace;
-    font-size: 14px;
-    resize: none;
-    white-space: nowrap;
-    overflow-y: hidden;
-    scrollbar-color: #483666 #b094c7;
-    scrollbar-width: thin;
+  height: 20px;
+  text-align: center;
+  background: #b094c7;
+  color: white;
+  border: 4px solid #483666;
+  border-radius: 20px;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 14px;
+  resize: none;
+  white-space: nowrap;
+  overflow-y: hidden;
+  scrollbar-color: #483666 #b094c7;
+  scrollbar-width: thin;
 }
 
 #libPath textarea:focus {
-    outline: none;
-    border-color: white;
+  outline: none;
+  border-color: white;
 }
 
 #libPath button {
-    background: #e2c044;
-    color: black;
-    border: solid black 4px;
-    font-family: "Oswald", sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    padding: 10px 20px;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: transform 0.2s, background 0.2s;
+  background: #e2c044;
+  color: black;
+  border: solid black 4px;
+  font-family: "Oswald", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
 }
 
 #libPath button:hover {
-    background: #d4b13e;
-    transform: scale(1.03);
+  background: #d4b13e;
+  transform: scale(1.03);
 }
 
 #libPath button:active {
-    transform: scale(0.98);
+  transform: scale(0.98);
 }
 
 #applyPath {
-    background: #483666;
-    color: white;
+  background: #483666;
+  color: white;
 }
 
 #applyPath:hover {
-    background: #5a467d;
+  background: #5a467d;
 }

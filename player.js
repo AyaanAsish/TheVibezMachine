@@ -118,7 +118,14 @@ function highlightActive() {
 function updateTrackName() {
   const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
   const name = activeQueue[current]?.split(/[\\/]/).pop() || "No track loaded";
-  document.getElementById("track-name").textContent = name;
+  const ele = document.getElementById("track-name");
+  ele.textContent = name;
+
+  // 
+  if (ele.scrollWidth > ele.clientWidth) {
+    ele.classList.add('scroll-animation');
+  }
+  else ele.classList.remove('scroll-animation');
 }
 
 function fmt(s) {

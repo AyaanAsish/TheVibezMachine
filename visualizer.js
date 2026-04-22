@@ -1,29 +1,35 @@
-import butterchurn from "butterchurn";
-import butterchurnPresets from "butterchurn-presets";
+const rawButterchurn = window.butterchurn;
+const butterchurn = rawButterchurn?.default || rawButterchurn;
 
-// initialize audioContext and get canvas
+if (!butterchurn?.createVisualizer) {
+  throw new Error("Butterchurn not loaded properly");
+}
+
+// presets is a FACTORY, not a map
+const PresetFactory =
+  window.butterchurnPresets?.default || window.butterchurnPresets;
+
+const presetsInstance = PresetFactory(); // <-- THIS IS REQUIRED
+
+const canvas = document.getElementById("visCanvas");
+const audioContext = new AudioContext();
 
 const visualizer = butterchurn.createVisualizer(audioContext, canvas, {
-  width: 800,
-  height: 600,
+  width: canvas.width,
+  height: canvas.height,
 });
 
-// get audioNode from audio source or microphone
+// get actual preset map
+const presets = presetsInstance.getPresets();
 
-visualizer.connectAudio(audioNode);
+// pick first safe preset
+const firstKey = Object.keys(presets)[0];
+visualizer.loadPreset(presets[firstKey], 0.0);
 
-// load a preset
+// render loop
+function animate() {
+  visualizer.render();
+  requestAnimationFrame(animate);
+}
 
-const presets = butterchurnPresets.getPresets();
-const preset =
-  presets["Flexi, martin + geiss - dedicated to the sherwin maxawow"];
-
-visualizer.loadPreset(preset, 0.0); // 2nd argument is the number of seconds to blend presets
-
-// resize visualizer
-
-visualizer.setRendererSize(1600, 1200);
-
-// render a frame
-
-visualizer.render();
+animate();

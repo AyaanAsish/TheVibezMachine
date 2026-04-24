@@ -1,6 +1,11 @@
 const audio = new Audio();
-let queue = [];
-let current = 0;
+let localQueue = [];
+let localCurrent = 0;
+
+// Helper to get active queue (window.playerQueue takes precedence)
+function getActiveQueue() {
+  return (window.playerQueue && window.playerQueue.length > 0) ? window.playerQueue : localQueue;
+}
 
 // --- Folder loading ---
 document.getElementById("btn-open").addEventListener("click", async () => {
@@ -15,19 +20,18 @@ document.getElementById("btn-open").addEventListener("click", async () => {
   window.setLibraryPath(result.folder);
 
   const audioExt = [".mp3", ".wav", ".flac", ".ogg", ".m4a"];
-  queue = result.files.filter((f) =>
+  localQueue = result.files.filter((f) =>
     audioExt.some((ext) => f.toLowerCase().endsWith(ext)),
   );
-  if (!queue.length) return;
+  if (!localQueue.length) return;
 
-  current = 0;
-  renderPlaylist();
-  loadTrack(current);
+  localCurrent = 0;
+  loadTrack(localCurrent);
 });
 
 function loadTrack(index) {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
-  current = index;
+  const activeQueue = getActiveQueue();
+  localCurrent = index;
   if (activeQueue.length > 0) {
     audio.src = activeQueue[index];
     audio.play();
@@ -42,13 +46,12 @@ document.getElementById("btn-play").addEventListener("click", () => {
 });
 
 document.getElementById("btn-prev").addEventListener("click", () => {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
-  if (current > 0) loadTrack(current - 1);
+  if (localCurrent > 0) loadTrack(localCurrent - 1);
 });
 
 document.getElementById("btn-next").addEventListener("click", () => {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
-  if (current < activeQueue.length - 1) loadTrack(current + 1);
+  const activeQueue = getActiveQueue();
+  if (localCurrent < activeQueue.length - 1) loadTrack(localCurrent + 1);
 });
 
 let previousVolume = 1;
@@ -65,21 +68,10 @@ document.getElementById("btn-mute").addEventListener("click", () => {
 });
 
 audio.addEventListener("ended", () => {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
-  if (current < activeQueue.length - 1) loadTrack(current + 1);
+  if (localCurrent < getActiveQueue().length - 1) loadTrack(localCurrent + 1);
 });
 
-function renderPlaylist() {
-  const list = document.getElementById("playlist");
-  if (!list) return;
-  list.innerHTML = "";
-  queue.forEach((f, i) => {
-    const li = document.createElement("li");
-    li.textContent = f.split(/[\\/]/).pop();
-    li.addEventListener("click", () => loadTrack(i)); // li and i exist here
-    list.appendChild(li);
-  });
-}
+// Removed: renderPlaylist() - footer playlist element doesn't exist in HTML
 
 // --- Progress bar ---
 const progressBar = document.getElementById("progress-bar");
@@ -104,20 +96,16 @@ document.getElementById("volume").addEventListener("input", (e) => {
 });
 
 function highlightActive() {
-  // Highlight footer playlist
-  document.querySelectorAll("#playlist li").forEach((li, i) => {
-    li.classList.toggle("active", i === current);
-  });
-
   // Highlight library tracklist
   document.querySelectorAll(".tracklist-item").forEach((li, i) => {
-    li.classList.toggle("active", i === current);
+    li.classList.toggle("active", i === localCurrent);
   });
 }
 
 function updateTrackName() {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
-  const name = activeQueue[current]?.split(/[\\/]/).pop() || "No track loaded";
+  const activeQueue = getActiveQueue();
+  let name = activeQueue[localCurrent]?.split(/[\\/]/).pop() || "No track loaded";
+  name = name.replace(/\.[^/.]+$/, "");
   document.getElementById("track-name").textContent = name;
 }
 
@@ -138,14 +126,39 @@ document.getElementById("applyPath").addEventListener("click", () => {
   }
 });
 
-// --- Expose for library.js ---
-window.playerAudio = audio;
-window.currentTrackIndex = current;
+// --- Spotify OAuth ---
+document.getElementById("spotifyConnect").addEventListener("click", async () => {
+  const clientId = document.getElementById("spotifyClientId").value.trim();
+  const clientSecret = document.getElementById("spotifyClientSecret").value.trim();
 
+  if (!clientId) {
+    alert("Please enter your Spotify Client ID");
+    return;
+  }
+
+  if (!clientSecret) {
+    alert("Please enter your Spotify Client Secret");
+    return;
+  }
+
+  console.log("[player.js] spotifyConnect clicked");
+
+  // This opens browser and starts callback server, resolves when token exchange completes
+  const result = await window.electronAPI.spotifyAuth(clientId, clientSecret);
+
+  if (result.success) {
+    console.log("[player.js] Spotify connected successfully!");
+    alert("Spotify connected successfully!");
+  } else {
+    console.error("[player.js] Spotify auth failed:", result.error);
+    alert("Failed to connect to Spotify: " + result.error);
+  }
+});
+
+// --- Expose for library.js ---
 window.loadPlayerTrack = (index) => {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
-  current = index;
-  window.currentTrackIndex = index;
+  const activeQueue = getActiveQueue();
+  localCurrent = index;
   if (activeQueue.length > 0) {
     audio.src = activeQueue[index];
     audio.play();
@@ -155,15 +168,6 @@ window.loadPlayerTrack = (index) => {
 };
 
 window.renderPlaylist = function() {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  const activeQueue = getActiveQueue();
   window.playerQueue = activeQueue;
-  const list = document.getElementById("playlist");
-  if (!list) return;
-  list.innerHTML = "";
-  activeQueue.forEach((f, i) => {
-    const li = document.createElement("li");
-    li.textContent = f.split("/").pop();
-    li.addEventListener("click", () => loadTrack(i));
-    list.appendChild(li);
-  });
 };

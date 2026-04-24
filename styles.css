@@ -53,6 +53,13 @@ html {
   padding-right: 20px;
 }
 
+/* Tracklist view flex container */
+#library .items:has(.library-grid.hide-grid) {
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
 
 /* Tabs */
 .tab {
@@ -251,7 +258,6 @@ footer {
     .bladeStrip,
     #content {
         width: calc(100% - 46px);
-        /* Adjust for blade width on smaller screens */
     }
 }
 
@@ -259,6 +265,11 @@ footer {
     width: 150px;
     cursor: pointer;
     transition: transform 0.2s;
+    pointer-events: auto;
+}
+
+.playlist-card * {
+    pointer-events: none;
 }
 
 .playlist-card:hover {
@@ -316,8 +327,8 @@ footer {
     padding: 20px;
 }
 
-/* Library - 65-35 Split */
-.library-content {
+/* Library - Grid View (default) */
+.library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 40px;
@@ -326,6 +337,109 @@ footer {
   overflow-x: hidden;
   width: calc(100% - 138px);
   height: 100%;
+  align-content: start;
+}
+
+.library-grid .playlist-card {
+  pointer-events: auto;
+}
+
+.library-grid::-webkit-scrollbar {
+  width: 10px;
+}
+
+.library-grid::-webkit-scrollbar-track {
+  background: #2a2a2a;
+  border-radius: 5px;
+}
+
+.library-grid::-webkit-scrollbar-thumb {
+  background: #e2c044;
+  border-radius: 5px;
+  border: 2px solid #2a2a2a;
+}
+
+.library-grid::-webkit-scrollbar-thumb:hover {
+  background: #d4b13e;
+}
+
+/* Library Tracklist & Album Info - hidden by default */
+.library-tracklist,
+.library-album-info {
+  display: none;
+}
+
+/* Responsive: Stack album info above tracklist - album always visible, tracklist scrolls */
+@media (max-width: 900px) {
+  #library .items {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Album info always visible at top - no scrolling */
+  .library-grid.hide-grid + .library-tracklist + .library-album-info {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    position: static !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 20px !important;
+    overflow: hidden !important;
+    overflow-y: hidden !important;
+    order: -1;
+    flex-shrink: 0;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Tracklist handles all scrolling */
+  .library-grid.hide-grid + .library-tracklist {
+    width: 100% !important;
+    height: auto !important;
+    max-height: calc(100vh - 300px) !important;
+    position: static !important;
+    border-right: none !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
+    overflow-y: auto;
+    flex-shrink: 1;
+  }
+
+  .library-album-info .album-info-card {
+    margin-bottom: 20px;
+  }
+
+  .library-album-info .album-cover-large {
+    max-width: 120px;
+    width: 120px;
+    height: 120px;
+  }
+}
+
+.library-content.in-tracklist-view {
+  display: none;
+}
+
+.library-tracklist.in-tracklist-view {
+  display: flex;
+  flex-direction: row;
+  width: 55%;
+  height: 100%;
+}
+
+.library-album-info.in-tracklist-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 45%;
+  left: 55%;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .library-content.in-tracklist-view {
@@ -552,18 +666,34 @@ footer {
   transform: scale(1.05);
 }
 
+/* Library Tab */
+#library .items {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+#library .items.items-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
 /* Settings Tab */
 #settings .items {
   padding: 20px;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   min-height: 100%;
   width: calc(100% - 138px); /* Accounts for blade width */
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
-#libPath {
+#libPath, #spotifyAuth {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -630,4 +760,67 @@ footer {
 
 #applyPath:hover {
     background: #5a467d;
+}
+
+/* Spotify Auth Section */
+#spotifyAuth {
+    border-top: 2px solid #483666;
+    padding-top: 30px;
+    margin-top: 30px;
+}
+
+#spotifyAuth #spotifyConnect {
+    margin-top: 15px;
+}
+
+#spotifyAuth label {
+    color: white;
+    font-family: oswald;
+    font-size: 16px;
+    letter-spacing: 0.05em;
+}
+
+#spotifyAuth textarea {
+    height: 20px;
+    text-align: center;
+    background: #b094c7;
+    color: white;
+    border: 4px solid #483666;
+    border-radius: 20px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 14px;
+    resize: none;
+    white-space: nowrap;
+    overflow-y: hidden;
+    scrollbar-color: #483666 #b094c7;
+    scrollbar-width: thin;
+}
+
+#spotifyAuth textarea:focus {
+    outline: none;
+    border-color: white;
+}
+
+#spotifyConnect {
+    background: #1DB954;
+    color: black;
+    border: solid black 4px;
+    font-family: "Oswald", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+}
+
+#spotifyConnect:hover {
+    background: #1ed760;
+    transform: scale(1.03);
+}
+
+#spotifyConnect:active {
+    transform: scale(0.98);
 }

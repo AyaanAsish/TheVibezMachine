@@ -63,6 +63,7 @@ async function loadLibrary() {
 
 function createPlaylistCard(container, name, audioFiles, coverImage) {
   const card = document.createElement('div')
+  card.className = 'playlist-card'
 
   const coverImg = document.createElement('div')
   coverImg.className = 'playlist-cover'

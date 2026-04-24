@@ -475,6 +475,21 @@ footer {
   font-size: 14px;
 }
 
+.playlist-card {
+  width: 150px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  pointer-events: auto;
+}
+
+.playlist-card * {
+  pointer-events: none;
+}
+
+.playlist-card:hover {
+  transform: scale(1.05);
+}
+
 .playlist-cover {
   width: 150px;
   height: 150px;

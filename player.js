@@ -121,7 +121,7 @@ function updateTrackName() {
   const ele = document.getElementById("track-name");
   ele.textContent = name;
 
-  // 
+  // Add/Remove scrolling animation
   if (ele.scrollWidth > ele.clientWidth) {
     ele.classList.add('scroll-animation');
   }

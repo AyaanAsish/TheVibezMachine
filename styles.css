@@ -317,12 +317,6 @@ footer {
   background: #d4b13e;
 }
 
-/* Library Tracklist & Album Info - hidden by default */
-.library-tracklist,
-.library-album-info {
-  display: none;
-}
-
 /* Tracklist and Album Info adjust for smaller views */
 @media (max-width: 900px) {
   #library .items {
@@ -366,13 +360,18 @@ footer {
 }
 
 .library-tracklist {
+  position: absolute;
+  display: flex;
   flex: 55;
   padding: 20px;
   overflow-y: auto;
   overflow-x: auto;
   min-width: 250px;
-  display: flex;
+  width: calc(55% - 138px);
+  max-height: calc(100vh - 300px);
   flex-direction: column;
+  box-sizing: border-box;
+  border-right: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 .library-tracklist::-webkit-scrollbar {
@@ -395,6 +394,7 @@ footer {
 }
 
 .library-album-info {
+  position: absolute;
   flex: 45;
   padding: 20px;
   display: flex;
@@ -402,8 +402,10 @@ footer {
   align-items: center;
   justify-content: flex-start;
   min-width: 250px;
-  overflow-y: auto;
+  width: calc(45% - 138px);
+  overflow-y: visible;
   overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .library-album-info::-webkit-scrollbar {

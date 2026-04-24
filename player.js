@@ -1,6 +1,73 @@
+// At the top of player.js
 const audio = new Audio();
+audio.crossOrigin = "anonymous";
 let queue = [];
 let current = 0;
+let audioSource = null;
+
+/**
+ * THE AUTO-CONNECTOR
+ * This function handles the "wiring" and ensures it only happens once.
+ */
+function ensureAudioConnection() {
+  // 1. Check if the visualizer is actually ready
+  if (!window.myVisualizer || !window.visualizerAudioContext) {
+    console.warn("[Player] Waiting for Visualizer to initialize...");
+    return false;
+  }
+
+  // 2. Create the source if it doesn't exist
+  if (!audioSource) {
+    try {
+      audioSource =
+        window.visualizerAudioContext.createMediaElementSource(audio);
+
+      // 3. Connect to Butterchurn
+      window.myVisualizer.connectAudio(audioSource);
+
+      // 4. Connect to Speakers
+      audioSource.connect(window.visualizerAudioContext.destination);
+
+      console.log("[Player] Automatic connection established.");
+    } catch (e) {
+      console.error("[Player] Connection error:", e);
+      return false;
+    }
+  }
+
+  // 5. Always try to wake up the context
+  if (window.visualizerAudioContext.state === "suspended") {
+    window.visualizerAudioContext.resume();
+  }
+
+  return true;
+}
+
+function connectToVisualizer() {
+  if (!window.myVisualizer || !window.visualizerAudioContext) return;
+
+  // 1. Wake up the engine (Needs to happen inside a click event)
+  if (window.visualizerAudioContext.state === "suspended") {
+    window.visualizerAudioContext.resume();
+  }
+
+  // 2. Create the source ONLY if we have a track loaded and haven't created it yet
+  if (!audioSource && audio.src && audio.src !== "") {
+    try {
+      audioSource =
+        window.visualizerAudioContext.createMediaElementSource(audio);
+
+      // Use the safeConnect wrapper you added to visualizer.js
+      window.safeConnect(audioSource);
+
+      // Connect to speakers
+      audioSource.connect(window.visualizerAudioContext.destination);
+      console.log("[Audio] Pipeline automatic connection successful.");
+    } catch (e) {
+      console.error("[Audio] Connection failed:", e);
+    }
+  }
+}
 
 // --- Folder loading ---
 document.getElementById("btn-open").addEventListener("click", async () => {
@@ -26,11 +93,28 @@ document.getElementById("btn-open").addEventListener("click", async () => {
 });
 
 function loadTrack(index) {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  const activeQueue = window.playerQueue || queue;
   current = index;
+
   if (activeQueue.length > 0) {
     audio.src = activeQueue[index];
-    audio.play();
+
+    // We try to connect here, but the Play Button click is the "real" trigger
+    connectToVisualizer();
+
+    audio
+      .play()
+      .then(() => {
+        // Double-check resume after play starts
+        if (
+          window.visualizerAudioContext &&
+          window.visualizerAudioContext.state === "suspended"
+        ) {
+          window.visualizerAudioContext.resume();
+        }
+      })
+      .catch((err) => console.error("Playback error:", err));
+
     updateTrackName();
     highlightActive();
   }
@@ -38,16 +122,30 @@ function loadTrack(index) {
 
 // --- Controls ---
 document.getElementById("btn-play").addEventListener("click", () => {
-  audio.paused ? audio.play() : audio.pause();
+  // IMPORTANT: Try to connect/resume every time play is clicked
+  // This satisfies the browser's "User Gesture" requirement
+  connectToVisualizer();
+
+  if (audio.paused) {
+    audio.play();
+  } else {
+    audio.pause();
+  }
 });
 
 document.getElementById("btn-prev").addEventListener("click", () => {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
   if (current > 0) loadTrack(current - 1);
 });
 
 document.getElementById("btn-next").addEventListener("click", () => {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
   if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
 
@@ -65,7 +163,10 @@ document.getElementById("btn-mute").addEventListener("click", () => {
 });
 
 audio.addEventListener("ended", () => {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
   if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
 
@@ -116,7 +217,10 @@ function highlightActive() {
 }
 
 function updateTrackName() {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
   const name = activeQueue[current]?.split(/[\\/]/).pop() || "No track loaded";
   document.getElementById("track-name").textContent = name;
 }
@@ -143,7 +247,10 @@ window.playerAudio = audio;
 window.currentTrackIndex = current;
 
 window.loadPlayerTrack = (index) => {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
   current = index;
   window.currentTrackIndex = index;
   if (activeQueue.length > 0) {
@@ -154,8 +261,11 @@ window.loadPlayerTrack = (index) => {
   }
 };
 
-window.renderPlaylist = function() {
-  const activeQueue = window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+window.renderPlaylist = function () {
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
   window.playerQueue = activeQueue;
   const list = document.getElementById("playlist");
   if (!list) return;

@@ -326,7 +326,7 @@ footer {
 
   /* Album info always visible at top - no scrolling */
   .library-grid.hide-grid+.library-tracklist+.library-album-info {
-    width: calc(100% - 138px) !important;
+    width: 100% !important;
     height: auto !important;
     max-height: none !important;
     position: static !important;
@@ -343,7 +343,7 @@ footer {
 
   /* Tracklist handles all scrolling */
   .library-grid.hide-grid+.library-tracklist {
-    width: calc(100% - 138px) !important;
+    width: 100% !important;
     height: auto !important;
     max-height: calc(100vh - 300px) !important;
     position: static !important;
@@ -367,7 +367,7 @@ footer {
   overflow-y: auto;
   overflow-x: auto;
   min-width: 250px;
-  width: calc(55% - 138px);
+  width: 65%;
   max-height: calc(100vh - 300px);
   flex-direction: column;
   box-sizing: border-box;
@@ -402,7 +402,8 @@ footer {
   align-items: center;
   justify-content: flex-start;
   min-width: 250px;
-  width: calc(45% - 138px);
+  width: 35%;
+  left: 65%;
   overflow-y: visible;
   overflow-x: auto;
   box-sizing: border-box;
@@ -601,7 +602,7 @@ footer {
 
 #library .items {
   position: relative;
-  width: 100%;
+  width: calc(100% - 138px);
   height: 100%;
   overflow: hidden;
   pointer-events: auto;

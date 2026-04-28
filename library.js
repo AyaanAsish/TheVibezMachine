@@ -108,11 +108,13 @@ function loadPlaylist(name, audioFiles, coverImage) {
 
   if (!tracklistContainer || !albumInfo) return
 
-  // Hide grid, show tracklist and album info
+  // Hide grid, show and clear tracklist and album info
   libraryGrid.style.display = 'none'
   libraryGrid.classList.add('hide-grid')
   tracklistContainer.style.display = 'flex'
   albumInfo.style.display = 'flex'
+  tracklistContainer.replaceChildren()
+  albumInfo.replaceChildren()
 
   // Add back button
   const backBtn = document.createElement('div')

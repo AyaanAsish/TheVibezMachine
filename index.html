@@ -1,63 +1,63 @@
 <!doctype html>
 <html>
-  <!-- HEAD -->
+<!-- HEAD -->
 
-  <head>
+<head>
     <title>TheVibezMachine</title>
     <link href="styles.css" rel="stylesheet" />
-  </head>
+</head>
 
-  <!-- BODY -->
-
-  <body>
+<!-- BODY -->
+<body>
     <div id="app">
-      <!-- Blades -->
-      <!-- Library -->
-      <div class="bladeStrip activeBlade" id="blade-library">
-        <div class="activeIndicator"></div>
-        <div class="labelBorder">
-          <div class="bladeLabel">Library</div>
-        </div>
-      </div>
-
-      <!-- Explore -->
-      <div class="bladeStrip" id="blade-explore">
-        <div class="activeIndicator"></div>
-        <div class="labelBorder">
-          <div class="bladeLabel">Explore</div>
-        </div>
-      </div>
-
-      <!-- Visualizer  -->
-      <div class="bladeStrip" id="blade-visualizer">
-        <div class="activeIndicator"></div>
-        <div class="labelBorder">
-          <div class="bladeLabel">Visualizer</div>
-        </div>
-      </div>
-
-      <!-- Settings -->
-      <div class="bladeStrip" id="blade-settings">
-        <div class="activeIndicator"></div>
-        <div class="labelBorder">
-          <div class="bladeLabel">Settings</div>
-        </div>
-      </div>
-
-      <!-- Content -->
-      <div id="content">
+        <!-- Blades -->
         <!-- Library -->
-        <div class="tab active" id="library">
-          <div class="items library-content">
-            <div class="library-tracklist"></div>
-            <div class="library-album-info"></div>
-          </div>
+        <div class="bladeStrip activeBlade" id="blade-library">
+            <div class="activeIndicator"></div>
+            <div class="labelBorder">
+                <div class="bladeLabel">Library</div>
+            </div>
+        </div>
+        
+        <!-- Explore -->
+        <div class="bladeStrip" id="blade-explore">
+            <div class="activeIndicator"></div>
+            <div class="labelBorder">
+                <div class="bladeLabel">Explore</div>
+            </div>
         </div>
 
-        <!-- Explore -->
-        <div class="tab" id="explore">
-          <div class="items"></div>
+        <!-- Visualizer  -->
+        <div class="bladeStrip" id="blade-visualizer">
+            <div class="activeIndicator"></div>
+            <div class="labelBorder">
+                <div class="bladeLabel">Visualizer</div>
+            </div>
         </div>
+
+        <!-- Settings -->
+        <div class="bladeStrip" id="blade-settings">
+            <div class="activeIndicator"></div>
+            <div class="labelBorder">
+                <div class="bladeLabel">Settings</div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div id="content">
+            <!-- Library -->
+            <div class="tab active" id="library">
+                <div class="items">
+                    <div class="library-grid"></div>
+                    <div class="library-tracklist"></div>
+                    <div class="library-album-info"></div>
+                </div>
+            </div>
+
+            <!-- Explore -->
+            <div class="tab" id="explore">
+                <div class="items"></div>
+            </div>
 
         <!-- Visualizer-->
         <div class="tab" id="visualizer">
@@ -76,64 +76,65 @@
           </div>
         </div>
 
-        <!-- Settings -->
-        <div class="tab" id="settings">
-          <div class="items">
-            <div id="libPath">
-              <label>Change library path</label>
-              <textarea id="path"></textarea>
-              <button id="applyPath">Apply Path</button>
-              <button id="btn-open">Open Files</button>
-              <label
-                >Please Format: <b class="keyword">"Title | Author"</b></label
-              >
+            <!-- Settings -->
+            <div class="tab" id="settings">
+                <div class="items">
+                    <div id="libPath">
+                        <label>Change library path</label>
+                        <textarea id="path"></textarea>
+                        <button id="applyPath">Apply Path</button>
+                        <button id="btn-open">Open Files</button>
+                        <label>Please Format Media: <b class="keyword">"Title | Author"</b></label>
+                    </div>
+                    <!--
+                    <div id="spotifyAuth" style="margin-top: 40px; border-top: 2px solid #483666; padding-top: 30px;">
+                      <label>Spotify Client ID</label>
+                      <textarea id="spotifyClientId"></textarea>
+                      <label>Spotify Client Secret</label>
+                      <textarea id="spotifyClientSecret"></textarea>
+                      <button id="spotifyConnect">Connect to Spotify</button>
+                    </div>
+                    -->
+                </div>
             </div>
-          </div>
         </div>
-      </div>
     </div>
 
     <!-- Player -->
     <footer>
-      <div id="player">
-        <!-- Track -->
-        <div id="track-info">
-          <span id="track-name">No track loaded</span>
-        </div>
+        <div id="player">
 
-        <!-- Progress Bar -->
-        <div id="progress-bar">
-          <div id="progress-fill"></div>
-        </div>
+            <!-- Track -->
+            <div id="track-info">
+                <span id="track-name">No track loaded</span>
+            </div>
 
-        <!-- Controls -->
-        <div id="controls">
-          <button class="controlBtn" id="btn-prev">⏮</button>
-          <!-- Duration -->
-          <div id="time-row">
-            <span id="current-time">0:00</span>
-            <span>/</span>
-            <span id="duration">0:00</span>
-          </div>
-          <button class="controlBtn" id="btn-play">▶</button>
-          <button class="controlBtn" id="btn-next">⏭</button>
-        </div>
+            <!-- Progress Bar -->
+            <div id="progress-bar">
+                <div id="progress-fill"></div>
+            </div>
 
-        <!-- Volume -->
-        <div id="volume-container">
-          <button id="btn-mute"></button>
-          <div class="sliderBar">
-            <input
-              type="range"
-              id="volume"
-              min="0"
-              max="1"
-              step="0.01"
-              value="1"
-            />
-          </div>
+            <!-- Controls -->
+            <div id="controls">
+                <button class="controlBtn" id="btn-prev">⏮</button>
+                <!-- Duration -->
+                <div id="time-row">
+                    <span id="current-time">0:00</span>
+                    <span>/</span>
+                    <span id="duration">0:00</span>
+                </div>
+                <button class="controlBtn" id="btn-play">▶</button>
+                <button class="controlBtn" id="btn-next">⏭</button>
+            </div>
+
+            <!-- Volume -->
+            <div id="volume-container">
+                <button id="btn-mute"></button>
+                <div class="sliderBar">
+                    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+                </div>
+            </div>
         </div>
-      </div>
     </footer>
 
     <!-- Scripts -->

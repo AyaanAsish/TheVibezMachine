@@ -1,34 +1,41 @@
+// VARIABLES
 let libraryPath = null
 let currentPlaylistData = null
 
+// LOAD LIBRARY
 async function loadLibrary() {
   console.log('[library.js] loadLibrary called, libraryPath:', libraryPath)
-  const container = document.querySelector('#library .library-tracklist')
+  const libraryGrid = document.querySelector('#library .library-grid')
+  const tracklistContainer = document.querySelector('#library .library-tracklist')
   const albumInfo = document.querySelector('#library .library-album-info')
-  const libraryContent = document.querySelector('#library .library-content')
-  const content = document.querySelector('#content')
-  if (!container) {
-    console.log('[library.js] container not found!')
+
+  if (!libraryGrid) {
+    console.log('[library.js] libraryGrid not found!')
     return
   }
 
-  // Remove tracklist view class
-  container.classList.remove('in-tracklist-view')
-  libraryContent.classList.remove('in-tracklist-view')
-  content.classList.remove('in-tracklist-view')
+  // Hide tracklist and album info, show grid
+  tracklistContainer.style.display = 'none'
+  albumInfo.style.display = 'none'
+  libraryGrid.style.display = 'grid'
+  libraryGrid.classList.remove('hide-grid')
+  libraryGrid.innerHTML = ''
 
-  // Clear playlist view if any
-  if (albumInfo) albumInfo.innerHTML = ''
-  container.innerHTML = ''
-
+  // Error handling
   if (!libraryPath) {
-    container.innerHTML = '<p class="empty-message">No library path set. Go to Settings to add a folder.</p>'
+    const msg = document.createElement('p')
+    msg.className = 'empty-message'
+    msg.textContent = 'No library path set. Go to Settings to add a folder.'
+    libraryGrid.appendChild(msg)
     return
   }
 
   const result = await window.electronAPI.scanFolder(libraryPath)
   if (!result) {
-    container.innerHTML = '<p class="empty-message">Error scanning folder.</p>'
+    const msg = document.createElement('p')
+    msg.className = 'empty-message'
+    msg.textContent = 'Error scanning folder.'
+    libraryGrid.appendChild(msg)
     return
   }
 
@@ -37,22 +44,26 @@ async function loadLibrary() {
     for (const folder of result.folders) {
       const folderResult = await window.electronAPI.scanFolder(folder.path)
       if (folderResult && folderResult.audioFiles.length > 0) {
-        createPlaylistCard(container, folder.name, folderResult.audioFiles, folderResult.coverImage)
+        createPlaylistCard(libraryGrid, folder.name, folderResult.audioFiles, folderResult.coverImage)
       }
     }
   } else if (result.audioFiles.length > 0) {
-    // No subfolders, treat the folder itself as a single playlist
     const playlistName = libraryPath.split('/').pop()
-    createPlaylistCard(container, playlistName, result.audioFiles, result.coverImage)
+    createPlaylistCard(libraryGrid, playlistName, result.audioFiles, result.coverImage)
   } else {
-    container.innerHTML = '<p class="empty-message">No audio files found.</p>'
+    const msg = document.createElement('p')
+    msg.className = 'empty-message'
+    msg.textContent = 'No audio files found.'
+    libraryGrid.appendChild(msg)
   }
 }
 
+// Playlist Card
 function createPlaylistCard(container, name, audioFiles, coverImage) {
   const card = document.createElement('div')
   card.className = 'playlist-card'
 
+  // Image
   const coverImg = document.createElement('div')
   coverImg.className = 'playlist-cover'
 
@@ -61,62 +72,58 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
     img.src = 'file://' + coverImage
     img.alt = name
     coverImg.appendChild(img)
-  } else {
+  } else { // No image
     coverImg.innerHTML = '<div class="no-cover">🎵</div>'
   }
 
+  // Playlist Info
   const info = document.createElement('div')
   info.className = 'playlist-info'
   const artistName = name.split('|')[1] || 'No Author'
   info.innerHTML = `<span class="playlist-name">${name.split('|')[0]}</span><span class="playlist-artist">${artistName}</span>`
 
-  card.appendChild(coverImg)
-  card.appendChild(info)
-
-  card.addEventListener('click', () => {
+  // Handle Click
+  card.addEventListener('click', function(e) {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('[library.js] Playlist card clicked:', name)
     loadPlaylist(name, audioFiles, coverImage)
   })
 
+  // Append
+  card.appendChild(coverImg)
+  card.appendChild(info)
   container.appendChild(card)
 }
 
+// LOAD PLAYLIST
 function loadPlaylist(name, audioFiles, coverImage) {
   console.log('[library.js] loadPlaylist called, name:', name, 'files:', audioFiles.length)
 
   currentPlaylistData = { name, audioFiles, coverImage }
 
+  const libraryGrid = document.querySelector('#library .library-grid')
   const tracklistContainer = document.querySelector('#library .library-tracklist')
   const albumInfo = document.querySelector('#library .library-album-info')
-  const libraryContent = document.querySelector('#library .library-content')
-  const content = document.querySelector('#content')
 
   if (!tracklistContainer || !albumInfo) return
 
-  tracklistContainer.classList.add('in-tracklist-view')
-  libraryContent.classList.add('in-tracklist-view')
-  content.classList.add('in-tracklist-view')
+  // Hide grid, show tracklist and album info
+  libraryGrid.style.display = 'none'
+  libraryGrid.classList.add('hide-grid')
+  tracklistContainer.style.display = 'flex'
+  albumInfo.style.display = 'flex'
 
-  // Show tracklist on left (65%)
-  tracklistContainer.innerHTML = ''
-
-  // Add back button wrapper
-  const backBtnWrapper = document.createElement('div')
-  backBtnWrapper.style.flexShrink = '0'
+  // Add back button
   const backBtn = document.createElement('div')
   backBtn.className = 'library-back-btn'
   backBtn.textContent = '← Back to Library'
   backBtn.addEventListener('click', () => {
     loadLibrary()
   })
-  backBtnWrapper.appendChild(backBtn)
-  tracklistContainer.appendChild(backBtnWrapper)
+  tracklistContainer.appendChild(backBtn)
 
-  // Add tracks wrapper
-  const tracksWrapper = document.createElement('div')
-  tracksWrapper.className = 'tracksWrapper'
-  tracksWrapper.style.flex = '1'
-  tracksWrapper.style.overflowY = 'auto'
-
+  // Add tracks
   audioFiles.forEach((file, index) => {
     const track = document.createElement('div')
     track.className = 'tracklist-item'
@@ -125,13 +132,10 @@ function loadPlaylist(name, audioFiles, coverImage) {
     track.addEventListener('click', () => {
       playTrack(index)
     })
-    tracksWrapper.appendChild(track)
+    tracklistContainer.appendChild(track)
   })
 
-  tracklistContainer.appendChild(tracksWrapper)
-
-  // Show album info on right (35%)
-  albumInfo.innerHTML = ''
+  // Setup album info
   const infoCard = document.createElement('div')
   infoCard.className = 'album-info-card'
 
@@ -161,6 +165,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
   })
 }
 
+// Play Track
 function playTrack(index) {
   if (!currentPlaylistData) return
 

@@ -222,7 +222,14 @@ function updateTrackName() {
       ? window.playerQueue
       : queue;
   const name = activeQueue[current]?.split(/[\\/]/).pop() || "No track loaded";
-  document.getElementById("track-name").textContent = name;
+  const ele = document.getElementById("track-name");
+  ele.textContent = name;
+
+  // Add/Remove scrolling animation
+  if (ele.scrollWidth > ele.clientWidth) {
+    ele.classList.add('scroll-animation');
+  }
+  else ele.classList.remove('scroll-animation');
 }
 
 function fmt(s) {

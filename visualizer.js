@@ -25,18 +25,15 @@ const initVisualizer = () => {
   const bcBase = window.butterchurn?.default || window.butterchurn;
   if (!bcBase) return;
 
-  const RawPresets =
-    window.butterchurnPresets?.default || window.butterchurnPresets;
+  window.butterchurnPresets?.default || window.butterchurnPresets;
   let presets = {};
   try {
-    if (typeof RawPresets === "function") {
-      const instance = new RawPresets();
-      presets = instance.getPresets ? instance.getPresets() : instance;
-    } else {
-      presets = RawPresets || {};
-    }
+    const RawPresets =
+      window.butterchurnPresets?.default || window.butterchurnPresets;
+    presets = RawPresets.getPresets ? RawPresets.getPresets() : RawPresets;
+    console.log("[Visualizer] Preset count:", Object.keys(presets).length);
   } catch (e) {
-    presets = RawPresets || {};
+    console.error("[Visualizer] Preset load error:", e);
   }
 
   const canvas = document.getElementById("visCanvas");

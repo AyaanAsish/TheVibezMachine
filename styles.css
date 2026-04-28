@@ -341,16 +341,18 @@ footer {
     justify-content: center !important;
   }
 
+  .library-album-info {
+    min-height: fit-content !important;
+  }
+
   /* Tracklist handles all scrolling */
   .library-grid.hide-grid+.library-tracklist {
     width: 100% !important;
-    height: auto !important;
     max-height: calc(100vh - 300px) !important;
     position: static !important;
     border-right: none !important;
     border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
     overflow-y: auto !important;
-    flex-shrink: 1;
   }
 
   .library-album-info .album-cover-large {
@@ -400,6 +402,7 @@ footer {
   display: flex;
   flex-direction: column;
   align-items: center;
+  align-self: center;
   justify-content: flex-start;
   min-width: 250px;
   width: 35%;

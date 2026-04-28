@@ -59,10 +59,22 @@
                 <div class="items"></div>
             </div>
 
-            <!-- Visualizer-->
-            <div class="tab" id="visualizer">
-                <div class="items"></div>
+        <!-- Visualizer-->
+        <div class="tab" id="visualizer">
+          <div class="items">
+            <div id="preset-bar">
+              <button id="preset-toggle">
+                PRESET <span id="preset-current-name">—</span> ▾
+              </button>
+              <div id="preset-dropdown">
+                <div id="preset-list"></div>
+              </div>
             </div>
+            <div class="visualizer-layer">
+              <canvas id="visCanvas"></canvas>
+            </div>
+          </div>
+        </div>
 
             <!-- Settings -->
             <div class="tab" id="settings">
@@ -129,6 +141,8 @@
     <script src="ui.js"></script>
     <script src="library.js"></script>
     <script src="player.js"></script>
-</body>
-
+    <script src="./vendor/butterchurn.min.js"></script>
+    <script src="./vendor/butterchurnPresets.min.js"></script>
+    <script src="visualizer.js"></script>
+  </body>
 </html>

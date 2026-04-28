@@ -1,29 +1,121 @@
-import butterchurn from "butterchurn";
-import butterchurnPresets from "butterchurn-presets";
+/**
+ * 1. UTILS & RESIZING
+ */
+const resizeCanvas = (canvas, visualizer) => {
+  if (!canvas) return;
+  const width = canvas.clientWidth || 800;
+  const height = canvas.clientHeight || 600;
+  const pixelRatio = window.devicePixelRatio || 1;
+  const targetWidth = Math.floor(width * pixelRatio);
+  const targetHeight = Math.floor(height * pixelRatio);
 
-// initialize audioContext and get canvas
+  if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    if (visualizer && typeof visualizer.setInternalSize === "function") {
+      visualizer.setInternalSize(canvas.width, canvas.height);
+    }
+  }
+};
 
-const visualizer = butterchurn.createVisualizer(audioContext, canvas, {
-  width: 800,
-  height: 600,
-});
+/**
+ * 2. MAIN INITIALIZATION
+ */
+const initVisualizer = () => {
+  const bcBase = window.butterchurn?.default || window.butterchurn;
+  if (!bcBase) return;
 
-// get audioNode from audio source or microphone
+  window.butterchurnPresets?.default || window.butterchurnPresets;
+  let presets = {};
+  try {
+    const RawPresets =
+      window.butterchurnPresets?.default || window.butterchurnPresets;
+    presets = RawPresets.getPresets ? RawPresets.getPresets() : RawPresets;
+    console.log("[Visualizer] Preset count:", Object.keys(presets).length);
+  } catch (e) {
+    console.error("[Visualizer] Preset load error:", e);
+  }
 
-visualizer.connectAudio(audioNode);
+  const canvas = document.getElementById("visCanvas");
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const visualizer = bcBase.createVisualizer(audioContext, canvas, {
+    width: canvas.clientWidth,
+    height: canvas.clientHeight,
+    pixelRatio: window.devicePixelRatio || 1,
+    meshWidth: 64,
+    meshHeight: 48,
+    textureRatio: 1,
+  });
 
-// load a preset
+  resizeCanvas(canvas, visualizer);
 
-const presets = butterchurnPresets.getPresets();
-const preset =
-  presets["Flexi, martin + geiss - dedicated to the sherwin maxawow"];
+  const presetKeys = Object.keys(presets);
+  if (presetKeys.length > 0) {
+    visualizer.loadPreset(presets[presetKeys[0]], 0.0);
+  }
 
-visualizer.loadPreset(preset, 0.0); // 2nd argument is the number of seconds to blend presets
+  // PRESET LIST GENERATION (Inside the function scope)
+  const listContainer = document.getElementById("preset-list");
+  const overlay = document.getElementById("preset-overlay");
+  const toggleBtn = document.getElementById("preset-toggle");
 
-// resize visualizer
+  if (listContainer && presetKeys.length > 0) {
+    listContainer.innerHTML = "";
+    presetKeys.forEach((name) => {
+      const btn = document.createElement("button");
+      btn.className = "preset-button";
+      btn.textContent = name.replace(/_/g, " ");
+      btn.onclick = () => {
+        visualizer.loadPreset(presets[name], 2.0);
+        document
+          .querySelectorAll(".preset-button")
+          .forEach((b) => b.classList.remove("active-preset"));
+        btn.classList.add("active-preset");
+        const label = document.getElementById("preset-current-name");
+        if (label) label.textContent = name.replace(/_/g, " ");
+        document.getElementById("preset-dropdown").classList.remove("open");
+      };
+      listContainer.appendChild(btn);
+    });
+    if (listContainer.firstChild)
+      listContainer.firstChild.classList.add("active-preset");
+  }
 
-visualizer.setRendererSize(1600, 1200);
+  if (toggleBtn) {
+    const dropdown = document.getElementById("preset-dropdown");
+    toggleBtn.onclick = () => {
+      dropdown.classList.toggle("open");
+    };
+    // Close if clicking outside
+    document.addEventListener("click", (e) => {
+      if (!toggleBtn.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.remove("open");
+      }
+    });
+  }
 
-// render a frame
+  /**
+   * 3. RENDER LOOP
+   */
+  const animate = () => {
+    visualizer.render();
+    requestAnimationFrame(animate);
+  };
+  animate();
 
-visualizer.render();
+  /**
+   * 4. LISTENERS & EXPOSURE
+   */
+  window.addEventListener("resize", () => resizeCanvas(canvas, visualizer));
+  window.myVisualizer = visualizer;
+  window.visualizerAudioContext = audioContext;
+  window.safeConnect = (source) => {
+    if (source && visualizer) visualizer.connectAudio(source);
+  };
+};
+
+if (document.readyState === "complete") {
+  initVisualizer();
+} else {
+  window.addEventListener("load", initVisualizer);
+}

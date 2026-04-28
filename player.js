@@ -253,9 +253,18 @@ window.loadPlayerTrack = (index) => {
       : queue;
   current = index;
   window.currentTrackIndex = index;
+
   if (activeQueue.length > 0) {
     audio.src = activeQueue[index];
-    audio.play();
+
+    // Play the audio
+    audio
+      .play()
+      .then(() => {
+        ensureAudioConnection();
+      })
+      .catch((e) => console.error("Playback failed:", e));
+
     updateTrackName();
     highlightActive();
   }

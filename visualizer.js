@@ -1,24 +1,17 @@
 /**
  * 1. UTILS & RESIZING
- * Handles the high-res scaling and syncing pixels to the screen.
  */
 const resizeCanvas = (canvas, visualizer) => {
   if (!canvas) return;
-
-  // Get display size, fallback to 800x600 if tab is hidden (size 0)
   const width = canvas.clientWidth || 800;
   const height = canvas.clientHeight || 600;
-
   const pixelRatio = window.devicePixelRatio || 1;
   const targetWidth = Math.floor(width * pixelRatio);
   const targetHeight = Math.floor(height * pixelRatio);
 
-  // Only update if dimensions actually changed
   if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
     canvas.width = targetWidth;
     canvas.height = targetHeight;
-
-    // Guard against calling the method before visualizer is ready
     if (visualizer && typeof visualizer.setInternalSize === "function") {
       visualizer.setInternalSize(canvas.width, canvas.height);
     }
@@ -29,19 +22,13 @@ const resizeCanvas = (canvas, visualizer) => {
  * 2. MAIN INITIALIZATION
  */
 const initVisualizer = () => {
-  // A. Locate Butterchurn Core
   const bcBase = window.butterchurn?.default || window.butterchurn;
-  if (!bcBase) {
-    console.error("Butterchurn library not found! Check your script tags.");
-    return;
-  }
+  if (!bcBase) return;
 
-  // B. Locate & Instantiate Presets
   const RawPresets =
     window.butterchurnPresets?.default || window.butterchurnPresets;
   let presets = {};
   try {
-    // Most packs require 'new', some are just objects
     if (typeof RawPresets === "function") {
       const instance = new RawPresets();
       presets = instance.getPresets ? instance.getPresets() : instance;
@@ -49,40 +36,71 @@ const initVisualizer = () => {
       presets = RawPresets || {};
     }
   } catch (e) {
-    console.warn("Preset instantiation failed, trying raw object", e);
     presets = RawPresets || {};
   }
 
-  // C. Setup Web Audio & Canvas
   const canvas = document.getElementById("visCanvas");
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-  // D. Create Visualizer Instance
-  // Initial size is based on current canvas dimensions
   const visualizer = bcBase.createVisualizer(audioContext, canvas, {
-    width: canvas.clientWidth || 800,
-    height: canvas.clientHeight || 600,
+    width: canvas.clientWidth,
+    height: canvas.clientHeight,
     pixelRatio: window.devicePixelRatio || 1,
-    meshWidth: 64, // Higher resolution for warping
+    meshWidth: 64,
     meshHeight: 48,
     textureRatio: 1,
   });
 
-  // E. Immediate sync to catch high-DPI scaling
   resizeCanvas(canvas, visualizer);
 
-  // F. Load the first available preset
   const presetKeys = Object.keys(presets);
   if (presetKeys.length > 0) {
     visualizer.loadPreset(presets[presetKeys[0]], 0.0);
   }
 
+  // PRESET LIST GENERATION (Inside the function scope)
+  const listContainer = document.getElementById("preset-list");
+  const overlay = document.getElementById("preset-overlay");
+  const toggleBtn = document.getElementById("preset-toggle");
+
+  if (listContainer && presetKeys.length > 0) {
+    listContainer.innerHTML = "";
+    presetKeys.forEach((name) => {
+      const btn = document.createElement("button");
+      btn.className = "preset-button";
+      btn.textContent = name.replace(/_/g, " ");
+      btn.onclick = () => {
+        visualizer.loadPreset(presets[name], 2.0);
+        document
+          .querySelectorAll(".preset-button")
+          .forEach((b) => b.classList.remove("active-preset"));
+        btn.classList.add("active-preset");
+        const label = document.getElementById("preset-current-name");
+        if (label) label.textContent = name.replace(/_/g, " ");
+        document.getElementById("preset-dropdown").classList.remove("open");
+      };
+      listContainer.appendChild(btn);
+    });
+    if (listContainer.firstChild)
+      listContainer.firstChild.classList.add("active-preset");
+  }
+
+  if (toggleBtn) {
+    const dropdown = document.getElementById("preset-dropdown");
+    toggleBtn.onclick = () => {
+      dropdown.classList.toggle("open");
+    };
+    // Close if clicking outside
+    document.addEventListener("click", (e) => {
+      if (!toggleBtn.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.remove("open");
+      }
+    });
+  }
+
   /**
    * 3. RENDER LOOP
-   * Includes a guard to prevent the GPU "mailbox" error when switching tabs.
    */
   const animate = () => {
-    // Only render if the visualizer tab is visible in your UI
     visualizer.render();
     requestAnimationFrame(animate);
   };
@@ -92,23 +110,13 @@ const initVisualizer = () => {
    * 4. LISTENERS & EXPOSURE
    */
   window.addEventListener("resize", () => resizeCanvas(canvas, visualizer));
-
-  // Export variables so player.js can "plug in" the audio source
   window.myVisualizer = visualizer;
-  // Create a safe wrapper so player.js can't crash it
-  window.safeConnect = (source) => {
-    if (source && visualizer) {
-      visualizer.connectAudio(source);
-    } else {
-      console.warn("Attempted to connect a null audio source.");
-    }
-  };
   window.visualizerAudioContext = audioContext;
-
-  console.log("Visualizer initialized and sharp. Ready for audio connection.");
+  window.safeConnect = (source) => {
+    if (source && visualizer) visualizer.connectAudio(source);
+  };
 };
 
-// Start when the page is ready
 if (document.readyState === "complete") {
   initVisualizer();
 } else {

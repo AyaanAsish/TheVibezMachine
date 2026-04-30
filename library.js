@@ -79,8 +79,8 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
   // Playlist Info
   const info = document.createElement('div')
   info.className = 'playlist-info'
-  const artistName = name.split('|')[1] || 'No Author'
-  info.innerHTML = `<span class="playlist-name">${name.split('|')[0]}</span><span class="playlist-artist">${artistName}</span>`
+  const artistName = name.split(' - ')[0] || 'No Author'
+  info.innerHTML = `<span class="playlist-name">${name.split(' - ')[1]}</span><span class="playlist-artist">${artistName}</span>`
 
   // Handle Click
   card.addEventListener('click', function(e) {

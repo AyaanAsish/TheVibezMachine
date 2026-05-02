@@ -62,36 +62,28 @@
   }
 
   function showDropdown() {
-    if (dropdown) dropdown.classList.add('visible');
+    if (dropdown) dropdown.classList.add('open');
   }
 
   function hideDropdown() {
-    if (dropdown) dropdown.classList.remove('visible');
+    if (dropdown) dropdown.classList.remove('open');
   }
 
   function showTracklist() {
     if (canvas) canvas.style.display = 'none';
     if (searchContainer) searchContainer.style.display = 'none';
-    if (tracklistContainer) {
-      tracklistContainer.classList.add('active-tracklist');
-      tracklistContainer.style.display = 'flex';
-    }
-    if (albumInfoContainer) {
-      albumInfoContainer.classList.add('active-tracklist');
-      albumInfoContainer.style.display = 'flex';
-    }
+    if (tracklistContainer) tracklistContainer.style.display = 'flex';
+    if (albumInfoContainer) albumInfoContainer.style.display = 'flex';
   }
 
   function hideTracklist() {
     if (canvas) canvas.style.display = 'block';
     if (searchContainer) searchContainer.style.display = 'flex';
     if (tracklistContainer) {
-      tracklistContainer.classList.remove('active-tracklist');
       tracklistContainer.style.display = 'none';
       tracklistContainer.innerHTML = '';
     }
     if (albumInfoContainer) {
-      albumInfoContainer.classList.remove('active-tracklist');
       albumInfoContainer.style.display = 'none';
       albumInfoContainer.innerHTML = '';
     }
@@ -159,7 +151,7 @@
     }
   }
 
-  function renderTracklist(tracks, name, artist, image, itemType) {
+  function renderTracklist(tracks, name, artist, image) {
     if (!tracklistContainer || !albumInfoContainer) return;
 
     showTracklist();

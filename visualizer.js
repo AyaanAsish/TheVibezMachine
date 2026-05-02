@@ -25,7 +25,6 @@ const initVisualizer = () => {
   const bcBase = window.butterchurn?.default || window.butterchurn;
   if (!bcBase) return;
 
-  window.butterchurnPresets?.default || window.butterchurnPresets;
   let presets = {};
   try {
     const RawPresets =
@@ -56,7 +55,6 @@ const initVisualizer = () => {
 
   // PRESET LIST GENERATION (Inside the function scope)
   const listContainer = document.getElementById("preset-list");
-  const overlay = document.getElementById("preset-overlay");
   const toggleBtn = document.getElementById("preset-toggle");
 
   if (listContainer && presetKeys.length > 0) {

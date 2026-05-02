@@ -44,29 +44,11 @@ function ensureAudioConnection() {
 }
 
 function connectToVisualizer() {
-  if (!window.myVisualizer || !window.visualizerAudioContext) return;
+  ensureAudioConnection();
+}
 
-  // 1. Wake up the engine (Needs to happen inside a click event)
-  if (window.visualizerAudioContext.state === "suspended") {
-    window.visualizerAudioContext.resume();
-  }
-
-  // 2. Create the source ONLY if we have a track loaded and haven't created it yet
-  if (!audioSource && audio.src && audio.src !== "") {
-    try {
-      audioSource =
-        window.visualizerAudioContext.createMediaElementSource(audio);
-
-      // Use the safeConnect wrapper you added to visualizer.js
-      window.safeConnect(audioSource);
-
-      // Connect to speakers
-      audioSource.connect(window.visualizerAudioContext.destination);
-      console.log("[Audio] Pipeline automatic connection successful.");
-    } catch (e) {
-      console.error("[Audio] Connection failed:", e);
-    }
-  }
+function getActiveQueue() {
+  return window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
 }
 
 // --- Folder loading ---
@@ -93,7 +75,7 @@ document.getElementById("btn-open").addEventListener("click", async () => {
 });
 
 function loadTrack(index) {
-  const activeQueue = window.playerQueue || queue;
+  const activeQueue = getActiveQueue();
   current = index;
 
   if (activeQueue.length > 0) {
@@ -122,8 +104,11 @@ function loadTrack(index) {
 
 // --- Controls ---
 document.getElementById("btn-play").addEventListener("click", () => {
-  // IMPORTANT: Try to connect/resume every time play is clicked
-  // This satisfies the browser's "User Gesture" requirement
+  if (window.isSpotifyPlayback) {
+    window.spotifyTogglePlay();
+    return;
+  }
+
   connectToVisualizer();
 
   if (audio.paused) {
@@ -134,24 +119,36 @@ document.getElementById("btn-play").addEventListener("click", () => {
 });
 
 document.getElementById("btn-prev").addEventListener("click", () => {
-  const activeQueue =
-    window.playerQueue && window.playerQueue.length > 0
-      ? window.playerQueue
-      : queue;
+  if (window.isSpotifyPlayback) {
+    window.spotifyPreviousTrack();
+    return;
+  }
+
+  const activeQueue = getActiveQueue();
   if (current > 0) loadTrack(current - 1);
 });
 
 document.getElementById("btn-next").addEventListener("click", () => {
-  const activeQueue =
-    window.playerQueue && window.playerQueue.length > 0
-      ? window.playerQueue
-      : queue;
+  if (window.isSpotifyPlayback) {
+    window.spotifyNextTrack();
+    return;
+  }
+
+  const activeQueue = getActiveQueue();
   if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
 
 let previousVolume = 1;
 
 document.getElementById("btn-mute").addEventListener("click", () => {
+  if (window.isSpotifyPlayback) {
+    const btn = document.getElementById("btn-mute");
+    btn.classList.toggle("muted");
+    const newVol = btn.classList.contains("muted") ? 0 : previousVolume;
+    window.spotifySetVolume(newVol);
+    return;
+  }
+
   const btn = document.getElementById("btn-mute");
   btn.classList.toggle("muted");
   if (audio.volume > 0) {
@@ -163,21 +160,20 @@ document.getElementById("btn-mute").addEventListener("click", () => {
 });
 
 audio.addEventListener("ended", () => {
-  const activeQueue =
-    window.playerQueue && window.playerQueue.length > 0
-      ? window.playerQueue
-      : queue;
+  const activeQueue = getActiveQueue();
   if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
 
 function renderPlaylist() {
+  const activeQueue = getActiveQueue();
+  window.playerQueue = activeQueue;
   const list = document.getElementById("playlist");
   if (!list) return;
   list.innerHTML = "";
-  queue.forEach((f, i) => {
+  activeQueue.forEach((f, i) => {
     const li = document.createElement("li");
-    li.textContent = f.split(/[\\/]/).pop();
-    li.addEventListener("click", () => loadTrack(i)); // li and i exist here
+    li.textContent = f.split("/").pop();
+    li.addEventListener("click", () => loadTrack(i));
     list.appendChild(li);
   });
 }
@@ -187,6 +183,7 @@ const progressBar = document.getElementById("progress-bar");
 const progressFill = document.getElementById("progress-fill");
 
 audio.addEventListener("timeupdate", () => {
+  if (window.isSpotifyPlayback) return;
   const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
   progressFill.style.width = pct + "%";
   document.getElementById("current-time").textContent = fmt(audio.currentTime);
@@ -196,12 +193,23 @@ audio.addEventListener("timeupdate", () => {
 
 progressBar.addEventListener("click", (e) => {
   const ratio = e.offsetX / progressBar.offsetWidth;
+  if (window.isSpotifyPlayback && window.spotifyPlaybackState) {
+    const duration = window.spotifyPlaybackState.track_window.current_track.duration_ms || 1;
+    window.spotifySeek(Math.floor(ratio * duration));
+    return;
+  }
   audio.currentTime = ratio * audio.duration;
 });
 
 // --- Volume ---
 document.getElementById("volume").addEventListener("input", (e) => {
-  audio.volume = e.target.value;
+  const val = parseFloat(e.target.value);
+  if (window.isSpotifyPlayback) {
+    window.spotifySetVolume(val);
+    previousVolume = val;
+    return;
+  }
+  audio.volume = val;
 });
 
 function highlightActive() {
@@ -217,11 +225,8 @@ function highlightActive() {
 }
 
 function updateTrackName() {
-  const activeQueue =
-    window.playerQueue && window.playerQueue.length > 0
-      ? window.playerQueue
-      : queue;
-  const name = activeQueue[current]?.split(/[\\/]/).pop() || "No track loaded";
+  const activeQueue = getActiveQueue();
+  const name = activeQueue[current]?.split("/").pop() || "No track loaded";
   const ele = document.getElementById("track-name");
   ele.textContent = name;
 
@@ -249,47 +254,29 @@ document.getElementById("applyPath").addEventListener("click", () => {
   }
 });
 
-// --- Expose for library.js ---
-window.playerAudio = audio;
-window.currentTrackIndex = current;
+// --- Settings: Spotify Connect ---
+document.getElementById("spotifyConnect").addEventListener("click", async () => {
+  const clientId = document.getElementById("spotifyClientId").value.trim();
+  const clientSecret = document.getElementById("spotifyClientSecret").value.trim();
 
-window.loadPlayerTrack = (index) => {
-  const activeQueue =
-    window.playerQueue && window.playerQueue.length > 0
-      ? window.playerQueue
-      : queue;
-  current = index;
-  window.currentTrackIndex = index;
-
-  if (activeQueue.length > 0) {
-    audio.src = activeQueue[index];
-
-    // Play the audio
-    audio
-      .play()
-      .then(() => {
-        ensureAudioConnection();
-      })
-      .catch((e) => console.error("Playback failed:", e));
-
-    updateTrackName();
-    highlightActive();
+  if (!clientId || !clientSecret) {
+    alert("Please enter both Spotify Client ID and Client Secret.");
+    return;
   }
-};
 
-window.renderPlaylist = function () {
-  const activeQueue =
-    window.playerQueue && window.playerQueue.length > 0
-      ? window.playerQueue
-      : queue;
-  window.playerQueue = activeQueue;
-  const list = document.getElementById("playlist");
-  if (!list) return;
-  list.innerHTML = "";
-  activeQueue.forEach((f, i) => {
-    const li = document.createElement("li");
-    li.textContent = f.split("/").pop();
-    li.addEventListener("click", () => loadTrack(i));
-    list.appendChild(li);
-  });
-};
+  try {
+    const result = await window.electronAPI.spotifyAuth(clientId, clientSecret);
+    if (result.success) {
+      alert("Spotify connected!");
+      document.getElementById("spotifyClientSecret").value = "";
+    } else {
+      alert("Spotify connection failed: " + (result.error || "Unknown error"));
+    }
+  } catch (e) {
+    alert("Spotify connection error: " + e.message);
+  }
+});
+
+// --- Expose for library.js ---
+window.loadPlayerTrack = loadTrack;
+window.renderPlaylist = renderPlaylist;

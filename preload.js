@@ -8,6 +8,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSpotifyCredentials: () => ipcRenderer.invoke('get-spotify-credentials'),
   spotifyApi: (endpoint) => ipcRenderer.invoke('spotify-api', endpoint),
   spotifyPlayTrack: (uri, deviceId) => ipcRenderer.invoke('spotify-play-track', uri, deviceId),
-  spotifyTransferPlayback: (deviceId) => ipcRenderer.invoke('spotify-transfer-playback', deviceId),
-  spotifyGetDevices: () => ipcRenderer.invoke('spotify-get-devices')
+  spotifyTransferPlayback: (deviceId) => ipcRenderer.invoke('spotify-transfer-playback', deviceId)
 })

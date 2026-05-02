@@ -69,7 +69,7 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
 
   if (coverImage) {
     const img = document.createElement('img')
-    img.src = 'file://' + coverImage
+    img.src = coverImage
     img.alt = name
     coverImg.appendChild(img)
   } else { // No image
@@ -143,7 +143,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
 
   if (coverImage) {
     infoCard.innerHTML = `
-      <img src="file://${coverImage}" alt="${name}" class="album-cover-large">
+      <img src="${coverImage}" alt="${name}" class="album-cover-large">
       <div class="album-name">${name}</div>
       <div class="album-artist">${audioFiles.length} tracks</div>
       <button class="playlist-play-btn">Play</button>

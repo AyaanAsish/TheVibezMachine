@@ -53,16 +53,18 @@
             <!-- Explore -->
             <div class="tab" id="explore">
                 <div class="items">
-                    <div id="explore-search-container">
-                        <input type="text" id="explore-search" placeholder="Search Spotify..." />
-                        <button id="explore-search-btn">Search</button>
-                        <div id="explore-dropdown">
-                            <div class="dropdown-results"></div>
+                    <div class="explore-browse">
+                        <div id="explore-search-container">
+                            <input type="text" id="explore-search" placeholder="Search Spotify..." />
+                            <button id="explore-search-btn">Search</button>
+                            <div id="explore-dropdown">
+                                <div class="dropdown-results"></div>
+                            </div>
                         </div>
+                        <canvas id="explore-canvas"></canvas>
                     </div>
-                    <canvas id="explore-canvas"></canvas>
-                    <div class="explore-tracklist"></div>
-                    <div class="explore-album-info"></div>
+                    <div class="library-tracklist"></div>
+                    <div class="library-album-info"></div>
                 </div>
             </div>
 
@@ -93,7 +95,7 @@
                         <button id="btn-open">Open Files</button>
                         <label>Please Format Media: <b class="keyword">"Author | Title"</b></label>
                     </div>
-                    <div id="spotifyAuth" style="margin-top: 40px; border-top: 2px solid #483666; padding-top: 30px;">
+                    <div id="spotifyAuth">
                       <label>Spotify Client ID</label>
                       <textarea id="spotifyClientId"></textarea>
                       <label>Spotify Client Secret</label>

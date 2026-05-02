@@ -6,8 +6,8 @@
   const searchBtn = document.getElementById('explore-search-btn');
   const dropdown = document.getElementById('explore-dropdown');
   const dropdownResults = dropdown ? dropdown.querySelector('.dropdown-results') : null;
-  const tracklistContainer = document.querySelector('.explore-tracklist');
-  const albumInfoContainer = document.querySelector('.explore-album-info');
+  const tracklistContainer = document.querySelector('#explore .library-tracklist');
+  const albumInfoContainer = document.querySelector('#explore .library-album-info');
   const searchContainer = document.getElementById('explore-search-container');
 
   let credentials = null;
@@ -16,6 +16,10 @@
   const imageCache = new Map();
   let needsRedraw = true;
   let hitRegions = [];
+  let hoveredItem = null;
+  let currentHoverScale = 1;
+  const HOVER_SCALE = 1.06;
+  const LERP_FACTOR = 0.12;
 
   const TILE_W = 160;
   const TILE_H = 210;
@@ -70,21 +74,25 @@
   }
 
   function showTracklist() {
-    if (canvas) canvas.style.display = 'none';
-    if (searchContainer) searchContainer.style.display = 'none';
-    if (tracklistContainer) tracklistContainer.style.display = 'flex';
-    if (albumInfoContainer) albumInfoContainer.style.display = 'flex';
+    const browse = document.querySelector('#explore .explore-browse');
+    const items = document.querySelector('#explore .items');
+    if (browse) browse.classList.add('hidden');
+    if (items) items.classList.add('showing-tracklist');
+    if (tracklistContainer) tracklistContainer.classList.remove('hidden');
+    if (albumInfoContainer) albumInfoContainer.classList.remove('hidden');
   }
 
   function hideTracklist() {
-    if (canvas) canvas.style.display = 'block';
-    if (searchContainer) searchContainer.style.display = 'flex';
+    const browse = document.querySelector('#explore .explore-browse');
+    const items = document.querySelector('#explore .items');
+    if (browse) browse.classList.remove('hidden');
+    if (items) items.classList.remove('showing-tracklist');
     if (tracklistContainer) {
-      tracklistContainer.style.display = 'none';
+      tracklistContainer.classList.add('hidden');
       tracklistContainer.innerHTML = '';
     }
     if (albumInfoContainer) {
-      albumInfoContainer.style.display = 'none';
+      albumInfoContainer.classList.add('hidden');
       albumInfoContainer.innerHTML = '';
     }
   }
@@ -161,7 +169,7 @@
 
     // Back button
     const backBtn = document.createElement('div');
-    backBtn.className = 'explore-back-btn';
+    backBtn.className = 'library-back-btn';
     backBtn.textContent = '← Back to Explore';
     backBtn.addEventListener('click', hideTracklist);
     tracklistContainer.appendChild(backBtn);
@@ -204,12 +212,12 @@
 
       const item = document.createElement('div');
       item.className = 'tracklist-item';
-      item.innerHTML = `<span class="track-number">${index + 1}</span><span class="track-title">${trackName}</span><span style="margin-left:auto;color:#888;font-size:12px;">${duration}</span>`;
+      item.innerHTML = `<span class="track-number">${index + 1}</span><span class="track-title">${trackName}</span>`;
       item.addEventListener('click', () => {
         if (uri) {
           window.spotifyPlayTrack(uri);
           // Highlight active
-          document.querySelectorAll('.explore-tracklist .tracklist-item').forEach((el, i) => {
+          document.querySelectorAll('#explore .library-tracklist .tracklist-item').forEach((el, i) => {
             el.classList.toggle('active', i === index);
           });
         }
@@ -242,7 +250,7 @@
       const img = document.createElement('img');
       img.src = item.image || '';
       img.alt = '';
-      img.onerror = () => { img.style.visibility = 'hidden'; };
+      img.onerror = () => { img.classList.add('img-error'); };
       const info = document.createElement('div');
       info.className = 'dropdown-info';
       const name = document.createElement('div');
@@ -405,6 +413,18 @@
       const row = Math.floor(i / cols);
       const x = startX + col * (TILE_W + GAP);
       const itemY = y + row * (TILE_H + GAP);
+      const isHovered = hoveredItem === item;
+
+      hitRegions.push({ x, y: itemY, w: TILE_W, h: TILE_H, item });
+
+      if (isHovered) {
+        ctx.save();
+        const cx = x + TILE_W / 2;
+        const cy = itemY + TILE_H / 2;
+        ctx.translate(cx, cy);
+        ctx.scale(currentHoverScale, currentHoverScale);
+        ctx.translate(-cx, -cy);
+      }
 
       if (item.image && imageCache.get(item.image)) {
         ctx.drawImage(imageCache.get(item.image), x, itemY, TILE_W, COVER_H);
@@ -426,19 +446,23 @@
         ctx.fillText(item.type, x + 4, itemY + 14);
       }
 
-      drawText(item.name, x + TILE_W / 2, itemY + COVER_H + 18, TILE_W, 13, '#ffffff');
+      drawText(item.name, x + TILE_W / 2, itemY + COVER_H + 16, TILE_W, 13, '#ffffff');
       if (item.artist) {
-        drawText(item.artist, x + TILE_W / 2, itemY + COVER_H + 34, TILE_W, 11, '#888888');
+        drawText(item.artist, x + TILE_W / 2, itemY + COVER_H + 42, TILE_W, 11, '#888888');
       }
 
-      hitRegions.push({ x, y: itemY, w: TILE_W, h: TILE_H, item });
+      if (isHovered) ctx.restore();
     });
 
     return y + Math.ceil(items.length / cols) * (TILE_H + GAP);
   }
 
   function draw() {
-    if (!needsRedraw) return;
+    const prevScale = currentHoverScale;
+    const target = hoveredItem ? HOVER_SCALE : 1;
+    currentHoverScale += (target - currentHoverScale) * LERP_FACTOR;
+
+    if (!needsRedraw && Math.abs(currentHoverScale - prevScale) < 0.001) return;
     needsRedraw = false;
 
     const cssW = canvas.width / (window.devicePixelRatio || 1);
@@ -493,23 +517,52 @@
     drawSection(savedAlbums, 'Saved Albums', 20, cols);
   }
 
-  canvas.addEventListener('click', (e) => {
+  function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
     const cssW = canvas.width / (window.devicePixelRatio || 1);
     const cssH = canvas.height / (window.devicePixelRatio || 1);
     const scaleX = cssW / rect.width;
     const scaleY = cssH / rect.height;
-    const mx = (e.clientX - rect.left) * scaleX;
-    const my = (e.clientY - rect.top) * scaleY;
+    return {
+      mx: (e.clientX - rect.left) * scaleX,
+      my: (e.clientY - rect.top) * scaleY
+    };
+  }
 
+  function findHitRegion(mx, my) {
     for (const region of hitRegions) {
       if (mx >= region.x && mx <= region.x + region.w && my >= region.y && my <= region.y + region.h) {
-        const item = region.item;
-        if (item.type === 'Saved Album') {
-          loadAlbumTracks(item.id, item.name, item.artist, item.image);
-        }
-        break;
+        return region.item;
       }
+    }
+    return null;
+  }
+
+  canvas.addEventListener('click', (e) => {
+    const { mx, my } = getMousePos(e);
+    const item = findHitRegion(mx, my);
+    if (item && item.type === 'Saved Album') {
+      loadAlbumTracks(item.id, item.name, item.artist, item.image);
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    const { mx, my } = getMousePos(e);
+    const prevHovered = hoveredItem;
+    hoveredItem = findHitRegion(mx, my);
+    if (hoveredItem !== prevHovered) {
+      canvas.style.cursor = hoveredItem ? 'pointer' : 'default';
+      needsRedraw = true;
+      draw();
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    if (hoveredItem) {
+      hoveredItem = null;
+      canvas.style.cursor = 'default';
+      needsRedraw = true;
+      draw();
     }
   });
 
@@ -550,6 +603,12 @@
     });
     tabObserver.observe(exploreTab, { attributes: true });
   }
+
+  function animate() {
+    draw();
+    requestAnimationFrame(animate);
+  }
+  animate();
 
   (async function init() {
     await getCredentials();

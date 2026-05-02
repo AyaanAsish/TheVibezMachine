@@ -8,7 +8,6 @@
 </head>
 
 <!-- BODY -->
-
 <body>
     <div id="app">
         <!-- Blades -->
@@ -71,10 +70,22 @@
                 </div>
             </div>
 
-            <!-- Visualizer-->
-            <div class="tab" id="visualizer">
-                <div class="items"></div>
+        <!-- Visualizer-->
+        <div class="tab" id="visualizer">
+          <div class="items">
+            <div id="preset-bar">
+              <button id="preset-toggle">
+                PRESET <span id="preset-current-name">—</span> ▾
+              </button>
+              <div id="preset-dropdown">
+                <div id="preset-list"></div>
+              </div>
             </div>
+            <div class="visualizer-layer">
+              <canvas id="visCanvas"></canvas>
+            </div>
+          </div>
+        </div>
 
             <!-- Settings -->
             <div class="tab" id="settings">
@@ -84,7 +95,7 @@
                         <textarea id="path"></textarea>
                         <button id="applyPath">Apply Path</button>
                         <button id="btn-open">Open Files</button>
-                        <label>Please Format: <b class="keyword">"Title | Author"</b></label>
+                        <label>Please Format Media: <b class="keyword">"Author | Title"</b></label>
                     </div>
                     <div id="spotifyAuth" style="margin-top: 40px; border-top: 2px solid #483666; padding-top: 30px;">
                       <label>Spotify Client ID</label>
@@ -141,6 +152,9 @@
     <script src="explore.js"></script>
     <script src="spotify-player.js"></script>
     <script src="player.js"></script>
-</body>
+    <script src="./vendor/butterchurn.min.js"></script>
+    <script src="./vendor/butterchurnPresets.min.js"></script>
+    <script src="visualizer.js"></script>
+  </body>
 
 </html>

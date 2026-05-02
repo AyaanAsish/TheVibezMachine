@@ -1,10 +1,72 @@
+// At the top of player.js
 const audio = new Audio();
-let localQueue = [];
-let localCurrent = 0;
+audio.crossOrigin = "anonymous";
+let queue = [];
+let current = 0;
+let audioSource = null;
 
-// Helper to get active queue (window.playerQueue takes precedence)
-function getActiveQueue() {
-  return (window.playerQueue && window.playerQueue.length > 0) ? window.playerQueue : localQueue;
+/**
+ * THE AUTO-CONNECTOR
+ * This function handles the "wiring" and ensures it only happens once.
+ */
+function ensureAudioConnection() {
+  // 1. Check if the visualizer is actually ready
+  if (!window.myVisualizer || !window.visualizerAudioContext) {
+    console.warn("[Player] Waiting for Visualizer to initialize...");
+    return false;
+  }
+
+  // 2. Create the source if it doesn't exist
+  if (!audioSource) {
+    try {
+      audioSource =
+        window.visualizerAudioContext.createMediaElementSource(audio);
+
+      // 3. Connect to Butterchurn
+      window.myVisualizer.connectAudio(audioSource);
+
+      // 4. Connect to Speakers
+      audioSource.connect(window.visualizerAudioContext.destination);
+
+      console.log("[Player] Automatic connection established.");
+    } catch (e) {
+      console.error("[Player] Connection error:", e);
+      return false;
+    }
+  }
+
+  // 5. Always try to wake up the context
+  if (window.visualizerAudioContext.state === "suspended") {
+    window.visualizerAudioContext.resume();
+  }
+
+  return true;
+}
+
+function connectToVisualizer() {
+  if (!window.myVisualizer || !window.visualizerAudioContext) return;
+
+  // 1. Wake up the engine (Needs to happen inside a click event)
+  if (window.visualizerAudioContext.state === "suspended") {
+    window.visualizerAudioContext.resume();
+  }
+
+  // 2. Create the source ONLY if we have a track loaded and haven't created it yet
+  if (!audioSource && audio.src && audio.src !== "") {
+    try {
+      audioSource =
+        window.visualizerAudioContext.createMediaElementSource(audio);
+
+      // Use the safeConnect wrapper you added to visualizer.js
+      window.safeConnect(audioSource);
+
+      // Connect to speakers
+      audioSource.connect(window.visualizerAudioContext.destination);
+      console.log("[Audio] Pipeline automatic connection successful.");
+    } catch (e) {
+      console.error("[Audio] Connection failed:", e);
+    }
+  }
 }
 
 // --- Folder loading ---
@@ -20,21 +82,39 @@ document.getElementById("btn-open").addEventListener("click", async () => {
   window.setLibraryPath(result.folder);
 
   const audioExt = [".mp3", ".wav", ".flac", ".ogg", ".m4a"];
-  localQueue = result.files.filter((f) =>
+  queue = result.files.filter((f) =>
     audioExt.some((ext) => f.toLowerCase().endsWith(ext)),
   );
-  if (!localQueue.length) return;
+  if (!queue.length) return;
 
-  localCurrent = 0;
-  loadTrack(localCurrent);
+  current = 0;
+  renderPlaylist();
+  loadTrack(current);
 });
 
 function loadTrack(index) {
-  const activeQueue = getActiveQueue();
-  localCurrent = index;
+  const activeQueue = window.playerQueue || queue;
+  current = index;
+
   if (activeQueue.length > 0) {
     audio.src = activeQueue[index];
-    audio.play();
+
+    // We try to connect here, but the Play Button click is the "real" trigger
+    connectToVisualizer();
+
+    audio
+      .play()
+      .then(() => {
+        // Double-check resume after play starts
+        if (
+          window.visualizerAudioContext &&
+          window.visualizerAudioContext.state === "suspended"
+        ) {
+          window.visualizerAudioContext.resume();
+        }
+      })
+      .catch((err) => console.error("Playback error:", err));
+
     updateTrackName();
     highlightActive();
   }
@@ -42,61 +122,71 @@ function loadTrack(index) {
 
 // --- Controls ---
 document.getElementById("btn-play").addEventListener("click", () => {
-  if (window.isSpotifyPlayback) {
-    window.spotifyTogglePlay();
+  // IMPORTANT: Try to connect/resume every time play is clicked
+  // This satisfies the browser's "User Gesture" requirement
+  connectToVisualizer();
+
+  if (audio.paused) {
+    audio.play();
   } else {
-    audio.paused ? audio.play() : audio.pause();
+    audio.pause();
   }
 });
 
 document.getElementById("btn-prev").addEventListener("click", () => {
-  if (window.isSpotifyPlayback) {
-    window.spotifyPreviousTrack();
-  } else if (localCurrent > 0) {
-    loadTrack(localCurrent - 1);
-  }
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
+  if (current > 0) loadTrack(current - 1);
 });
 
 document.getElementById("btn-next").addEventListener("click", () => {
-  if (window.isSpotifyPlayback) {
-    window.spotifyNextTrack();
-  } else {
-    const activeQueue = getActiveQueue();
-    if (localCurrent < activeQueue.length - 1) loadTrack(localCurrent + 1);
-  }
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
+  if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
 
 let previousVolume = 1;
 
 document.getElementById("btn-mute").addEventListener("click", () => {
   const btn = document.getElementById("btn-mute");
-  const slider = document.getElementById("volume");
   btn.classList.toggle("muted");
   if (audio.volume > 0) {
     previousVolume = audio.volume;
     audio.volume = 0;
-    slider.value = 0;
-    if (window.isSpotifyPlayback) window.spotifySetVolume(0);
   } else {
     audio.volume = previousVolume;
-    slider.value = previousVolume;
-    if (window.isSpotifyPlayback) window.spotifySetVolume(previousVolume);
   }
 });
 
 audio.addEventListener("ended", () => {
-  if (window.isSpotifyPlayback) return;
-  if (localCurrent < getActiveQueue().length - 1) loadTrack(localCurrent + 1);
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
+  if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
 
-// Removed: renderPlaylist() - footer playlist element doesn't exist in HTML
+function renderPlaylist() {
+  const list = document.getElementById("playlist");
+  if (!list) return;
+  list.innerHTML = "";
+  queue.forEach((f, i) => {
+    const li = document.createElement("li");
+    li.textContent = f.split(/[\\/]/).pop();
+    li.addEventListener("click", () => loadTrack(i)); // li and i exist here
+    list.appendChild(li);
+  });
+}
 
 // --- Progress bar ---
 const progressBar = document.getElementById("progress-bar");
 const progressFill = document.getElementById("progress-fill");
 
 audio.addEventListener("timeupdate", () => {
-  if (window.isSpotifyPlayback) return;
   const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
   progressFill.style.width = pct + "%";
   document.getElementById("current-time").textContent = fmt(audio.currentTime);
@@ -106,35 +196,40 @@ audio.addEventListener("timeupdate", () => {
 
 progressBar.addEventListener("click", (e) => {
   const ratio = e.offsetX / progressBar.offsetWidth;
-  if (window.isSpotifyPlayback && window.spotifyPlaybackState) {
-    const durationMs = window.spotifyPlaybackState.track_window.current_track.duration_ms;
-    window.spotifySeek(Math.floor(ratio * durationMs));
-  } else {
-    audio.currentTime = ratio * audio.duration;
-  }
+  audio.currentTime = ratio * audio.duration;
 });
 
 // --- Volume ---
 document.getElementById("volume").addEventListener("input", (e) => {
-  const val = e.target.value;
-  if (window.isSpotifyPlayback) {
-    window.spotifySetVolume(val);
-  }
-  audio.volume = val;
+  audio.volume = e.target.value;
 });
 
 function highlightActive() {
+  // Highlight footer playlist
+  document.querySelectorAll("#playlist li").forEach((li, i) => {
+    li.classList.toggle("active", i === current);
+  });
+
   // Highlight library tracklist
   document.querySelectorAll(".tracklist-item").forEach((li, i) => {
-    li.classList.toggle("active", i === localCurrent);
+    li.classList.toggle("active", i === current);
   });
 }
 
 function updateTrackName() {
-  const activeQueue = getActiveQueue();
-  let name = activeQueue[localCurrent]?.split(/[\\/]/).pop() || "No track loaded";
-  name = name.replace(/\.[^/.]+$/, "");
-  document.getElementById("track-name").textContent = name;
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
+  const name = activeQueue[current]?.split(/[\\/]/).pop() || "No track loaded";
+  const ele = document.getElementById("track-name");
+  ele.textContent = name;
+
+  // Add/Remove scrolling animation
+  if (ele.scrollWidth > ele.clientWidth) {
+    ele.classList.add('scroll-animation');
+  }
+  else ele.classList.remove('scroll-animation');
 }
 
 function fmt(s) {
@@ -154,48 +249,47 @@ document.getElementById("applyPath").addEventListener("click", () => {
   }
 });
 
-// --- Spotify OAuth ---
-document.getElementById("spotifyConnect").addEventListener("click", async () => {
-  const clientId = document.getElementById("spotifyClientId").value.trim();
-  const clientSecret = document.getElementById("spotifyClientSecret").value.trim();
-
-  if (!clientId) {
-    alert("Please enter your Spotify Client ID");
-    return;
-  }
-
-  if (!clientSecret) {
-    alert("Please enter your Spotify Client Secret");
-    return;
-  }
-
-  console.log("[player.js] spotifyConnect clicked");
-
-  // This opens browser and starts callback server, resolves when token exchange completes
-  const result = await window.electronAPI.spotifyAuth(clientId, clientSecret);
-
-  if (result.success) {
-    console.log("[player.js] Spotify connected successfully!");
-    alert("Spotify connected successfully!");
-  } else {
-    console.error("[player.js] Spotify auth failed:", result.error);
-    alert("Failed to connect to Spotify: " + result.error);
-  }
-});
-
 // --- Expose for library.js ---
+window.playerAudio = audio;
+window.currentTrackIndex = current;
+
 window.loadPlayerTrack = (index) => {
-  const activeQueue = getActiveQueue();
-  localCurrent = index;
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
+  current = index;
+  window.currentTrackIndex = index;
+
   if (activeQueue.length > 0) {
     audio.src = activeQueue[index];
-    audio.play();
+
+    // Play the audio
+    audio
+      .play()
+      .then(() => {
+        ensureAudioConnection();
+      })
+      .catch((e) => console.error("Playback failed:", e));
+
     updateTrackName();
     highlightActive();
   }
 };
 
-window.renderPlaylist = function() {
-  const activeQueue = getActiveQueue();
+window.renderPlaylist = function () {
+  const activeQueue =
+    window.playerQueue && window.playerQueue.length > 0
+      ? window.playerQueue
+      : queue;
   window.playerQueue = activeQueue;
+  const list = document.getElementById("playlist");
+  if (!list) return;
+  list.innerHTML = "";
+  activeQueue.forEach((f, i) => {
+    const li = document.createElement("li");
+    li.textContent = f.split("/").pop();
+    li.addEventListener("click", () => loadTrack(i));
+    list.appendChild(li);
+  });
 };

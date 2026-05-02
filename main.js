@@ -86,16 +86,14 @@ function createWindow(port) {
   const win = new BrowserWindow({
     width: width,
     height: height,
-    minWidth: 700,
-    minHeight: 500,
+    minWidth: width/2,
+    minHeight: 700,
     webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        preload: path.join(__dirname, 'preload.js'),
-        plugins: true,
-        webSecurity: false
-    }
-  })
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
 
   if (port) {
     console.log(`[main] Loading app from http://127.0.0.1:${port}`)

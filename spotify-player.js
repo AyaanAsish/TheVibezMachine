@@ -129,38 +129,60 @@
   };
 
   window.spotifyPlayTrack = async (uri) => {
+    // First: try our Web Playback SDK device
     let attempts = 0;
     const maxAttempts = 8; // ~4 seconds max wait
-
     while (attempts < maxAttempts) {
       const activeDeviceId = window.spotifyDeviceId;
-      if (!activeDeviceId) {
-        console.log('[spotify-player] Waiting for device ID...');
-        await new Promise(r => setTimeout(r, 500));
-        attempts++;
-        continue;
+      if (activeDeviceId) {
+        console.log('[spotify-player] Playing on Web Playback SDK device:', activeDeviceId);
+        const result = await window.electronAPI.spotifyPlayTrack(uri, activeDeviceId);
+        if (result.success) {
+          window.isSpotifyPlayback = true;
+          return;
+        }
+        if (result.error && result.error.includes('NO_ACTIVE_DEVICE') && attempts === 0) {
+          console.log('[spotify-player] Device not active, transferring...');
+          await window.electronAPI.spotifyTransferPlayback(activeDeviceId);
+          await new Promise(r => setTimeout(r, 700));
+          attempts++;
+          continue;
+        }
+        console.error('[spotify-player] Failed to start track on SDK device:', result.error);
+        break; // Fall through to device fallback
       }
+      console.log('[spotify-player] Waiting for SDK device ID...');
+      await new Promise(r => setTimeout(r, 500));
+      attempts++;
+    }
 
-      const result = await window.electronAPI.spotifyPlayTrack(uri, activeDeviceId);
-      if (result.success) {
-        window.isSpotifyPlayback = true;
-        return;
-      }
-
-      // If NO_ACTIVE_DEVICE, try transferring playback again then retry once
-      if (result.error && result.error.includes('NO_ACTIVE_DEVICE') && attempts === 0) {
-        console.log('[spotify-player] Device not active, transferring...');
-        await window.electronAPI.spotifyTransferPlayback(activeDeviceId);
-        await new Promise(r => setTimeout(r, 700));
-        attempts++;
-        continue;
-      }
-
-      console.error('[spotify-player] Failed to start track:', result.error);
-      alert('Failed to play track: ' + result.error);
+    // Fallback: query user's available Spotify devices and play on an active one
+    console.log('[spotify-player] SDK device not ready. Querying available devices...');
+    const devicesResult = await window.electronAPI.spotifyGetDevices();
+    if (!devicesResult.success) {
+      console.error('[spotify-player] Failed to get devices:', devicesResult.error);
+      alert('Spotify player is not ready. Open Spotify on your phone or computer and try again.');
       return;
     }
 
-    alert('Spotify player is still connecting. Try again in a moment.');
+    const devices = devicesResult.devices || [];
+    console.log('[spotify-player] Available devices:', devices.map(d => ({ name: d.name, id: d.id, is_active: d.is_active })));
+
+    // Prefer an active device, then any available device
+    let targetDevice = devices.find(d => d.is_active) || devices[0];
+    if (!targetDevice) {
+      alert('No Spotify devices found. Open Spotify on your phone or computer and try again.');
+      return;
+    }
+
+    console.log('[spotify-player] Falling back to device:', targetDevice.name, targetDevice.id);
+    const playResult = await window.electronAPI.spotifyPlayTrack(uri, targetDevice.id);
+    if (playResult.success) {
+      window.isSpotifyPlayback = true;
+      console.log('[spotify-player] Playback started on fallback device:', targetDevice.name);
+    } else {
+      console.error('[spotify-player] Fallback playback failed:', playResult.error);
+      alert('Failed to play: ' + playResult.error);
+    }
   };
 })();

@@ -364,6 +364,27 @@ ipcMain.handle('spotify-auth', async (event, clientId, clientSecret) => {
   })
 })
 
+// IPC handler to get available Spotify devices
+ipcMain.handle('spotify-get-devices', async () => {
+  if (!spotifyCredentials) {
+    return { success: false, error: 'Not authenticated with Spotify' }
+  }
+  try {
+    await ensureValidToken()
+    const res = await fetch('https://api.spotify.com/v1/me/player/devices', {
+      headers: { 'Authorization': 'Bearer ' + spotifyCredentials.accessToken }
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+    }
+    const data = await res.json()
+    return { success: true, devices: data.devices || [] }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+})
+
 // IPC handler to get stored credentials
 ipcMain.handle('get-spotify-credentials', () => {
   return spotifyCredentials

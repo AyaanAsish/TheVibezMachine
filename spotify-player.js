@@ -35,7 +35,7 @@
     return `${m}:${sec}`;
   }
 
-  window.onSpotifyWebPlaybackSDKReady = () => {
+  function initSpotifyPlayer() {
     player = new Spotify.Player({
       name: 'TheVibezMachine',
       getOAuthToken: (cb) => {
@@ -91,8 +91,17 @@
       alert('Spotify Premium is required for in-app playback.');
     });
 
-    player.connect();
-  };
+    player.connect().then((success) => {
+      console.log('[spotify-player] connect() returned:', success);
+    });
+  }
+
+  // Defensive init: if the SDK already loaded before this script ran, start immediately.
+  if (window.Spotify) {
+    initSpotifyPlayer();
+  } else {
+    window.onSpotifyWebPlaybackSDKReady = initSpotifyPlayer;
+  }
 
   window.spotifyTogglePlay = () => {
     if (!player) return;

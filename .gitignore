@@ -4,4 +4,6 @@
 debug.js
 .idea/
 CLAUDE.md
-.DS_store/
+INSTRUNCTIONS.md
+/idea
+.DS_Store

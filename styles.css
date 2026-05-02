@@ -420,10 +420,6 @@ footer {
   }
 }
 
-.library-content.in-tracklist-view {
-  display: none;
-}
-
 .library-tracklist.in-tracklist-view {
   display: flex;
   flex-direction: row;
@@ -440,34 +436,6 @@ footer {
   left: 55%;
   height: 100%;
   overflow-y: auto;
-}
-
-.library-content.in-tracklist-view {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  padding: 20px;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-.library-content::-webkit-scrollbar {
-  width: 10px;
-}
-
-.library-content::-webkit-scrollbar-track {
-  background: #2a2a2a;
-  border-radius: 5px;
-}
-
-.library-content::-webkit-scrollbar-thumb {
-  background: #e2c044;
-  border-radius: 5px;
-  border: 2px solid #2a2a2a;
-}
-
-.library-content::-webkit-scrollbar-thumb:hover {
-  background: #d4b13e;
 }
 
 .library-tracklist {
@@ -530,32 +498,6 @@ footer {
 }
 
 .library-album-info::-webkit-scrollbar-thumb:hover {
-  background: #d4b13e;
-}
-
-.tracksWrapper {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: visible;
-  min-height: 0;
-}
-
-.tracksWrapper::-webkit-scrollbar {
-  width: 10px;
-}
-
-.tracksWrapper::-webkit-scrollbar-track {
-  background: #2a2a2a;
-  border-radius: 5px;
-}
-
-.tracksWrapper::-webkit-scrollbar-thumb {
-  background: #e2c044;
-  border-radius: 5px;
-  border: 2px solid #2a2a2a;
-}
-
-.tracksWrapper::-webkit-scrollbar-thumb:hover {
   background: #d4b13e;
 }
 

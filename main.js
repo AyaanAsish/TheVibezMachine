@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, screen, shell, components } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, screen, shell, components, session } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
@@ -27,6 +27,16 @@ function createWindow() {
 app.whenReady().then(async () => {
   await components.whenReady()
   console.log('Widevine components ready:', components.status())
+
+  // Mask User-Agent for Spotify domains to avoid CDN blocks on non-standard Electron builds
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    if (details.url && (details.url.includes('spotify.com') || details.url.includes('scdn.co'))) {
+      details.requestHeaders['User-Agent'] = ua
+    }
+    callback({ cancel: false, requestHeaders: details.requestHeaders })
+  })
+
   createWindow()
 })
 

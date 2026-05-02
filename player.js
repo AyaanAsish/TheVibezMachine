@@ -42,32 +42,50 @@ function loadTrack(index) {
 
 // --- Controls ---
 document.getElementById("btn-play").addEventListener("click", () => {
-  audio.paused ? audio.play() : audio.pause();
+  if (window.isSpotifyPlayback) {
+    window.spotifyTogglePlay();
+  } else {
+    audio.paused ? audio.play() : audio.pause();
+  }
 });
 
 document.getElementById("btn-prev").addEventListener("click", () => {
-  if (localCurrent > 0) loadTrack(localCurrent - 1);
+  if (window.isSpotifyPlayback) {
+    window.spotifyPreviousTrack();
+  } else if (localCurrent > 0) {
+    loadTrack(localCurrent - 1);
+  }
 });
 
 document.getElementById("btn-next").addEventListener("click", () => {
-  const activeQueue = getActiveQueue();
-  if (localCurrent < activeQueue.length - 1) loadTrack(localCurrent + 1);
+  if (window.isSpotifyPlayback) {
+    window.spotifyNextTrack();
+  } else {
+    const activeQueue = getActiveQueue();
+    if (localCurrent < activeQueue.length - 1) loadTrack(localCurrent + 1);
+  }
 });
 
 let previousVolume = 1;
 
 document.getElementById("btn-mute").addEventListener("click", () => {
   const btn = document.getElementById("btn-mute");
+  const slider = document.getElementById("volume");
   btn.classList.toggle("muted");
   if (audio.volume > 0) {
     previousVolume = audio.volume;
     audio.volume = 0;
+    slider.value = 0;
+    if (window.isSpotifyPlayback) window.spotifySetVolume(0);
   } else {
     audio.volume = previousVolume;
+    slider.value = previousVolume;
+    if (window.isSpotifyPlayback) window.spotifySetVolume(previousVolume);
   }
 });
 
 audio.addEventListener("ended", () => {
+  if (window.isSpotifyPlayback) return;
   if (localCurrent < getActiveQueue().length - 1) loadTrack(localCurrent + 1);
 });
 
@@ -78,6 +96,7 @@ const progressBar = document.getElementById("progress-bar");
 const progressFill = document.getElementById("progress-fill");
 
 audio.addEventListener("timeupdate", () => {
+  if (window.isSpotifyPlayback) return;
   const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
   progressFill.style.width = pct + "%";
   document.getElementById("current-time").textContent = fmt(audio.currentTime);
@@ -87,12 +106,21 @@ audio.addEventListener("timeupdate", () => {
 
 progressBar.addEventListener("click", (e) => {
   const ratio = e.offsetX / progressBar.offsetWidth;
-  audio.currentTime = ratio * audio.duration;
+  if (window.isSpotifyPlayback && window.spotifyPlaybackState) {
+    const durationMs = window.spotifyPlaybackState.track_window.current_track.duration_ms;
+    window.spotifySeek(Math.floor(ratio * durationMs));
+  } else {
+    audio.currentTime = ratio * audio.duration;
+  }
 });
 
 // --- Volume ---
 document.getElementById("volume").addEventListener("input", (e) => {
-  audio.volume = e.target.value;
+  const val = e.target.value;
+  if (window.isSpotifyPlayback) {
+    window.spotifySetVolume(val);
+  }
+  audio.volume = val;
 });
 
 function highlightActive() {

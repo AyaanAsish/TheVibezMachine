@@ -5,6 +5,7 @@
 <head>
     <title>TheVibezMachine</title>
     <link href="styles.css" rel="stylesheet" />
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </head>
 
 <!-- BODY -->
@@ -57,7 +58,18 @@
 
             <!-- Explore -->
             <div class="tab" id="explore">
-                <div class="items"></div>
+                <div class="items">
+                    <div id="explore-search-container">
+                        <input type="text" id="explore-search" placeholder="Search Spotify..." />
+                        <button id="explore-search-btn">Search</button>
+                        <div id="explore-dropdown">
+                            <div class="dropdown-results"></div>
+                        </div>
+                    </div>
+                    <canvas id="explore-canvas"></canvas>
+                    <div class="explore-tracklist"></div>
+                    <div class="explore-album-info"></div>
+                </div>
             </div>
 
             <!-- Visualizer-->
@@ -127,6 +139,8 @@
     <!-- Scripts -->
     <script src="ui.js"></script>
     <script src="library.js"></script>
+    <script src="explore.js"></script>
+    <script src="spotify-player.js"></script>
     <script src="player.js"></script>
 </body>
 

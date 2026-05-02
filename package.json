@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/AyaanAsish/TheVibezMachine#readme",
   "devDependencies": {
-    "electron": "^41.1.1"
+    "electron": "https://github.com/castlabs/electron-releases#v41.1.1+wvcus"
   },
   "dependencies": {
     "butterchurn": "^2.6.7",

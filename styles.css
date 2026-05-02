@@ -824,3 +824,191 @@ footer {
 #spotifyConnect:active {
     transform: scale(0.98);
 }
+
+/* Explore Tab */
+#explore .items {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+#explore-search-container {
+  width: 80%;
+  max-width: 600px;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+#explore-search {
+  flex: 1;
+  height: 20px;
+  text-align: center;
+  background: #b094c7;
+  color: white;
+  border: 4px solid #483666;
+  border-radius: 20px;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 14px;
+  outline: none;
+}
+
+#explore-search::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+#explore-search:focus {
+  border-color: white;
+}
+
+#explore-search-btn {
+  background: #e2c044;
+  color: black;
+  border: solid black 4px;
+  font-family: "Oswald", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+
+#explore-search-btn:hover {
+  background: #d4b13e;
+  transform: scale(1.03);
+}
+
+#explore-search-btn:active {
+  transform: scale(0.98);
+}
+
+#explore-canvas {
+  border: 2px solid #483666;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.explore-tracklist,
+.explore-album-info {
+  display: none;
+}
+
+#explore .items:has(.explore-tracklist.active-tracklist) {
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.explore-tracklist.active-tracklist {
+  display: flex;
+  flex-direction: column;
+  width: 55%;
+  height: 100%;
+  padding: 20px;
+  overflow-y: auto;
+  border-right: 2px solid rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+}
+
+.explore-album-info.active-tracklist {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 45%;
+  height: 100%;
+  padding: 20px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.explore-back-btn {
+  color: #e2c044;
+  font-family: oswald;
+  font-size: 16px;
+  cursor: pointer;
+  margin-bottom: 15px;
+  padding: 8px 10px;
+  display: inline-block;
+  align-self: flex-start;
+  transition: transform 0.2s, color 0.2s;
+  transform-origin: left center;
+}
+
+.explore-back-btn:hover {
+  transform: scale(1.1);
+  transform-origin: left center;
+}
+
+#explore-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  background: #1a1a2e;
+  border: 2px solid #483666;
+  border-radius: 8px;
+  z-index: 10;
+  display: none;
+}
+
+#explore-dropdown.visible {
+  display: block;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: white;
+  font-family: oswald, sans-serif;
+  font-size: 13px;
+}
+
+.dropdown-item:hover {
+  background: rgba(226, 192, 68, 0.15);
+}
+
+.dropdown-item img {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: #2a2a2a;
+  flex-shrink: 0;
+}
+
+.dropdown-item .dropdown-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dropdown-item .dropdown-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-item .dropdown-meta {
+  color: #888;
+  font-size: 11px;
+}

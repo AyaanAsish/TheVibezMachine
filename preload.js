@@ -5,5 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanFolder: (folderPath) => ipcRenderer.invoke('scan-folder', folderPath),
   // Spotify OAuth
   spotifyAuth: (clientId, clientSecret) => ipcRenderer.invoke('spotify-auth', clientId, clientSecret),
-  getSpotifyCredentials: () => ipcRenderer.invoke('get-spotify-credentials')
+  getSpotifyCredentials: () => ipcRenderer.invoke('get-spotify-credentials'),
+  spotifyApi: (endpoint) => ipcRenderer.invoke('spotify-api', endpoint),
+  spotifyPlayTrack: (uri, deviceId) => ipcRenderer.invoke('spotify-play-track', uri, deviceId),
+  spotifyTransferPlayback: (deviceId) => ipcRenderer.invoke('spotify-transfer-playback', deviceId)
 })

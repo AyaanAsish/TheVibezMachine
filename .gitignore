@@ -4,4 +4,7 @@
 debug.js
 .idea/
 CLAUDE.md
-.DS_store/
+.DS_Store
+INSTRUCTIONS.md
+/idea
+.spotify-auth.json

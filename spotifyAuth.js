@@ -1,12 +1,53 @@
 const http = require('http')
 const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
 
-// Spotify OAuth configuration
-const SPOTIFY_REDIRECT = 'http://127.0.0.1:8080'
-const SPOTIFY_SCOPE = 'user-read-private user-read-email user-read-playback-state user-modify-playback-state playlist-read-private playlist-modify-public playlist-modify-private user-library-read streaming'
+const TOKEN_FILE = path.join(__dirname, '.spotify-auth.json')
 
 // Store for Spotify credentials
 let spotifyCredentials = null
+
+function loadTokens() {
+  try {
+    if (fs.existsSync(TOKEN_FILE)) {
+      const data = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'))
+      spotifyCredentials = {
+        clientId: data.clientId,
+        clientSecret: data.clientSecret,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        tokenExpiry: data.tokenExpiry
+      }
+      console.log('[spotifyAuth] Loaded tokens from disk')
+    }
+  } catch (e) {
+    console.error('[spotifyAuth] Failed to load tokens:', e.message)
+    spotifyCredentials = null
+  }
+}
+
+function saveTokens() {
+  try {
+    if (spotifyCredentials) {
+      fs.writeFileSync(TOKEN_FILE, JSON.stringify(spotifyCredentials, null, 2))
+    } else {
+      if (fs.existsSync(TOKEN_FILE)) {
+        fs.unlinkSync(TOKEN_FILE)
+      }
+    }
+  } catch (e) {
+    console.error('[spotifyAuth] Failed to save tokens:', e.message)
+  }
+}
+
+// Load persisted tokens on startup
+loadTokens()
+
+// Spotify OAuth configuration
+const SPOTIFY_REDIRECT = 'http://127.0.0.1:8080'
+const SPOTIFY_SCOPE = 'user-read-private user-read-email user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-library-read streaming'
+
 let pendingSpotifyAuth = null // { clientId, clientSecret, resolve }
 let spotifyCallbackServer = null
 let spotifyAuthState = null
@@ -59,6 +100,7 @@ async function exchangeSpotifyToken(clientId, clientSecret, code) {
       refreshToken: tokenData.refresh_token,
       tokenExpiry: Date.now() + (tokenData.expires_in * 1000)
     }
+    saveTokens()
     return tokenData
   } catch (err) {
     throw err
@@ -93,6 +135,7 @@ async function ensureValidToken() {
   if (tokenData.refresh_token) {
     spotifyCredentials.refreshToken = tokenData.refresh_token
   }
+  saveTokens()
 }
 
 // IPC handler to proxy Spotify API calls (avoids CORS in renderer)
@@ -118,7 +161,7 @@ async function spotifyApi(_event, endpoint) {
 }
 
 // IPC handler to transfer playback to a specific device (makes it active)
-async function spotifyTransferPlayback(_event, deviceId) {
+async function spotifyTransferPlayback(_event, deviceId, shouldPlay = false) {
   if (!spotifyCredentials) {
     return { success: false, error: 'Not authenticated with Spotify' }
   }
@@ -130,7 +173,7 @@ async function spotifyTransferPlayback(_event, deviceId) {
         'Authorization': 'Bearer ' + spotifyCredentials.accessToken,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ device_ids: [deviceId], play: false })
+      body: JSON.stringify({ device_ids: [deviceId], play: shouldPlay })
     })
     if (res.status === 204 || res.status === 202) {
       return { success: true }
@@ -149,6 +192,8 @@ async function spotifyPlayTrack(_event, uri, deviceId) {
   }
   try {
     await ensureValidToken()
+    // If no deviceId is provided, play on the user's currently active device.
+    // The caller should transfer playback to the SDK device first so it becomes active.
     const url = 'https://api.spotify.com/v1/me/player/play' + (deviceId ? '?device_id=' + encodeURIComponent(deviceId) : '')
     const res = await fetch(url, {
       method: 'PUT',
@@ -289,8 +334,28 @@ async function spotifyAuth(_event, clientId, clientSecret) {
 }
 
 // IPC handler to get stored credentials
-function getSpotifyCredentials() {
-  return spotifyCredentials
+async function getSpotifyCredentials() {
+  await ensureValidToken()
+  if (!spotifyCredentials) return null
+  // Only expose what the renderer needs; never leak clientSecret
+  return {
+    accessToken: spotifyCredentials.accessToken,
+    refreshToken: spotifyCredentials.refreshToken,
+    tokenExpiry: spotifyCredentials.tokenExpiry
+  }
+}
+
+// IPC handler to clear stored credentials (forces re-authentication)
+async function spotifyDisconnect() {
+  try {
+    spotifyCredentials = null
+    if (fs.existsSync(TOKEN_FILE)) {
+      fs.unlinkSync(TOKEN_FILE)
+    }
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: e.message }
+  }
 }
 
 function registerSpotifyIpcs(ipcMain) {
@@ -299,6 +364,7 @@ function registerSpotifyIpcs(ipcMain) {
   ipcMain.handle('spotify-play-track', spotifyPlayTrack)
   ipcMain.handle('spotify-auth', spotifyAuth)
   ipcMain.handle('get-spotify-credentials', getSpotifyCredentials)
+  ipcMain.handle('spotify-disconnect', spotifyDisconnect)
 }
 
 module.exports = { registerSpotifyIpcs }

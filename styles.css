@@ -732,6 +732,7 @@ footer {
   image-rendering: crisp-edges;
 }
 
+
 #preset-bar {
   position: absolute;
   top: 0;
@@ -837,7 +838,24 @@ footer {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.explore-browse::-webkit-scrollbar {
+  width: 10px;
+}
+.explore-browse::-webkit-scrollbar-track {
+  background: #2a2a2a;
+  border-radius: 5px;
+}
+.explore-browse::-webkit-scrollbar-thumb {
+  background: #e2c044;
+  border-radius: 5px;
+  border: 2px solid #2a2a2a;
+}
+.explore-browse::-webkit-scrollbar-thumb:hover {
+  background: #d4b13e;
 }
 
 #explore .items {
@@ -903,40 +921,88 @@ footer {
   position: absolute;
   top: 100%;
   left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: calc(100% - 110px);
+  background: rgba(0, 0, 0, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  max-height: 300px;
+  max-height: 280px;
   overflow-y: auto;
-  z-index: 50;
-  margin-top: 8px;
-  padding: 8px;
+  z-index: 100;
+  margin-top: 6px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
 }
 
 #explore-dropdown.open {
   display: block;
 }
 
+#explore-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+#explore-dropdown::-webkit-scrollbar-thumb {
+  background: #e2c044;
+  border-radius: 10px;
+}
+
 .dropdown-results {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .dropdown-item {
-  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
   color: #aaa;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   font-family: oswald, sans-serif;
   font-size: 13px;
   transition: background 0.15s, color 0.15s;
+  min-height: 40px;
 }
 
 .dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   color: white;
+}
+
+.dropdown-item img {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #2a2a2a;
+}
+
+.dropdown-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.dropdown-name {
+  color: white;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-meta {
+  color: #888;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #explore-canvas {

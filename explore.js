@@ -12,6 +12,7 @@
 
   let credentials = null;
   let savedAlbums = [];
+  let savedPlaylists = [];
   let apiError = null;
   const imageCache = new Map();
   let needsRedraw = true;
@@ -65,6 +66,36 @@
     draw();
   }
 
+  async function fetchSavedPlaylists() {
+    if (!credentials) return;
+    try {
+      const result = await window.electronAPI.spotifyApi('/me/playlists?limit=50');
+      if (!result.success) {
+        apiError = result.error;
+        savedPlaylists = [];
+        needsRedraw = true;
+        draw();
+        return;
+      }
+      apiError = null;
+      savedPlaylists = (result.data.items || []).map(item => ({
+        name: item.name,
+        artist: item.owner?.display_name || '',
+        image: item.images[0]?.url,
+        uri: item.uri,
+        id: item.id,
+        type: 'Saved Playlist'
+      }));
+      preloadImages(savedPlaylists);
+    } catch (e) {
+      apiError = e.message;
+      console.error('Failed to fetch saved playlists:', e);
+      savedPlaylists = [];
+    }
+    needsRedraw = true;
+    draw();
+  }
+
   function showDropdown() {
     if (dropdown) dropdown.classList.add('open');
   }
@@ -95,6 +126,9 @@
       albumInfoContainer.classList.add('hidden');
       albumInfoContainer.innerHTML = '';
     }
+    // Force canvas resync so hitRegions are rebuilt for the next frame
+    needsRedraw = true;
+    resize();
   }
 
   async function loadAlbumTracks(albumId, name, artist, image) {
@@ -102,41 +136,88 @@
     try {
       const result = await window.electronAPI.spotifyApi('/albums/' + albumId + '/tracks?limit=50');
       if (!result.success) {
-        apiError = result.error;
-        draw();
+        console.error('[explore] Album tracks API error:', result.error);
+        renderTracklist([], name, artist, image, 'Error loading album: ' + result.error);
         return;
       }
       apiError = null;
       const tracks = result.data.items || [];
-      renderTracklist(tracks, name, artist, image, 'Album');
+      renderTracklist(tracks, name, artist, image);
     } catch (e) {
-      apiError = e.message;
-      console.error('Failed to load album tracks:', e);
-      draw();
+      console.error('[explore] Failed to load album tracks:', e);
+      renderTracklist([], name, artist, image, 'Error: ' + e.message);
     }
   }
 
   async function loadPlaylistTracks(playlistId, name, image) {
-    if (!credentials) return;
+    if (!credentials || !playlistId) {
+      console.warn('[explore] Cannot load playlist: missing credentials or id');
+      renderTracklist([], name, '', image, 'Cannot load playlist: missing credentials or ID');
+      return;
+    }
+    console.log('[explore] Loading playlist tracks for id:', playlistId);
     try {
-      const result = await window.electronAPI.spotifyApi('/playlists/' + playlistId + '/tracks?limit=50');
-      if (!result.success) {
-        apiError = result.error;
-        draw();
+      // Paginate through all tracks (max 50 per request)
+      let allItems = [];
+      let offset = 0;
+      const limit = 50;
+      let total = null;
+
+      while (true) {
+        const result = await window.electronAPI.spotifyApi(
+          '/playlists/' + playlistId + '/items?limit=' + limit + '&offset=' + offset + '&additional_types=track'
+        );
+        if (!result.success) {
+          console.error('[explore] Playlist tracks API error (offset ' + offset + '):', result.error);
+          const is403 = String(result.error).includes('403');
+          const msg = is403
+            ? 'Error loading playlist: ' + result.error + '\n\nIf this is a followed playlist (not owned by you), Spotify now restricts access. For owned playlists, try reconnecting Spotify in Settings to refresh your token with the latest permissions.'
+            : 'Error loading playlist: ' + result.error;
+          renderTracklist([], name, '', image, msg);
+          return;
+        }
+
+        const items = result.data.items || [];
+        allItems = allItems.concat(items);
+        total = result.data.total;
+        console.log('[explore] Fetched', items.length, 'items (offset', offset, 'of', total, ')');
+
+        if (items.length === 0 || allItems.length >= total) break;
+        offset += limit;
+      }
+
+      apiError = null;
+      console.log('[explore] Total items fetched:', allItems.length);
+      if (allItems.length > 0) {
+        console.log('[explore] First item raw:', JSON.stringify(allItems[0], null, 2));
+      }
+
+      const tracks = allItems.map(item => {
+        const track = item.item || item.track;
+        return {
+          name: track ? track.name : 'Unavailable',
+          artists: track && track.artists ? track.artists : [],
+          uri: track ? track.uri : '',
+          duration_ms: track ? track.duration_ms : 0,
+          is_local: item.is_local || false
+        };
+      }).filter(t => t.uri);
+
+      console.log('[explore] Playable tracks after filtering:', tracks.length);
+      if (tracks.length === 0) {
+        const hasLocal = allItems.some(i => i.is_local);
+        const allNull = allItems.length > 0 && allItems.every(i => !(i.item || i.track));
+        let msg = 'No playable tracks found in this playlist.';
+        if (allNull) msg += ' Spotify returned all tracks as unavailable. Try reconnecting Spotify in Settings to refresh your token with the latest permissions.';
+        else if (hasLocal) msg += ' This playlist may contain local files which Spotify cannot stream via the API.';
+        else msg += ' All tracks may be unavailable or region-locked.';
+        renderTracklist([], name, '', image, msg);
         return;
       }
-      apiError = null;
-      const tracks = (result.data.items || []).map(item => ({
-        name: item.track ? item.track.name : 'Unknown',
-        artists: item.track ? item.track.artists : [],
-        uri: item.track ? item.track.uri : '',
-        duration_ms: item.track ? item.track.duration_ms : 0
-      }));
-      renderTracklist(tracks, name, '', image, 'Playlist');
+      renderTracklist(tracks, name, '', image);
     } catch (e) {
-      apiError = e.message;
-      console.error('Failed to load playlist tracks:', e);
-      draw();
+      console.error('[explore] Failed to load playlist tracks:', e);
+      renderTracklist([], name, '', image, 'Error: ' + e.message);
     }
   }
 
@@ -145,21 +226,20 @@
     try {
       const result = await window.electronAPI.spotifyApi('/artists/' + artistId + '/top-tracks?market=US');
       if (!result.success) {
-        apiError = result.error;
-        draw();
+        console.error('[explore] Artist top tracks API error:', result.error);
+        renderTracklist([], name, '', image, 'Error loading artist: ' + result.error);
         return;
       }
       apiError = null;
       const tracks = result.data.tracks || [];
-      renderTracklist(tracks, name, '', image, 'Artist');
+      renderTracklist(tracks, name, '', image);
     } catch (e) {
-      apiError = e.message;
-      console.error('Failed to load artist top tracks:', e);
-      draw();
+      console.error('[explore] Failed to load artist top tracks:', e);
+      renderTracklist([], name, '', image, 'Error: ' + e.message);
     }
   }
 
-  function renderTracklist(tracks, name, artist, image) {
+  function renderTracklist(tracks, name, artist, image, errorMsg) {
     if (!tracklistContainer || !albumInfoContainer) return;
 
     showTracklist();
@@ -173,6 +253,16 @@
     backBtn.textContent = '← Back to Explore';
     backBtn.addEventListener('click', hideTracklist);
     tracklistContainer.appendChild(backBtn);
+
+    // Error message (if any)
+    if (errorMsg) {
+      const errDiv = document.createElement('div');
+      errDiv.style.color = '#e2c044';
+      errDiv.style.padding = '10px 15px';
+      errDiv.style.fontFamily = 'oswald, sans-serif';
+      errDiv.textContent = errorMsg;
+      tracklistContainer.appendChild(errDiv);
+    }
 
     // Album info card
     const infoCard = document.createElement('div');
@@ -198,10 +288,18 @@
     const playBtn = infoCard.querySelector('.playlist-play-btn');
     playBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (tracks.length > 0 && tracks[0].uri) {
-        window.spotifyPlayTrack(tracks[0].uri);
+      const firstIdx = tracks.findIndex(t => t.uri);
+      if (firstIdx >= 0) {
+        window.spotifyQueue = tracks;
+        window.spotifyCurrentIndex = firstIdx;
+        window.spotifyPlayTrack(tracks[firstIdx].uri);
+      } else {
+        console.warn('[explore] No playable tracks in this list');
       }
     });
+
+    // Set the global Spotify queue so prev/next works across the tracklist
+    window.spotifyQueue = tracks;
 
     // Tracklist items
     tracks.forEach((track, index) => {
@@ -215,6 +313,7 @@
       item.innerHTML = `<span class="track-number">${index + 1}</span><span class="track-title">${trackName}</span>`;
       item.addEventListener('click', () => {
         if (uri) {
+          window.spotifyCurrentIndex = index;
           window.spotifyPlayTrack(uri);
           // Highlight active
           document.querySelectorAll('#explore .library-tracklist .tracklist-item').forEach((el, i) => {
@@ -265,6 +364,8 @@
       el.appendChild(info);
       el.addEventListener('click', () => {
         if (item.type === 'Track') {
+          window.spotifyQueue = [item];
+          window.spotifyCurrentIndex = 0;
           window.spotifyPlayTrack(item.uri);
         } else if (item.type === 'Album') {
           const id = item.uri.replace('spotify:album:', '');
@@ -286,7 +387,7 @@
       return;
     }
     try {
-      const endpoint = '/search?q=' + encodeURIComponent(query) + '&type=album,track,artist&limit=10';
+      const endpoint = '/search?q=' + encodeURIComponent(query) + '&type=album,track&limit=10';
       const result = await window.electronAPI.spotifyApi(endpoint);
       if (!result.success) {
         apiError = result.error;
@@ -316,16 +417,6 @@
           uri: t.uri,
           id: t.id,
           type: 'Track'
-        });
-      });
-      (data.artists?.items || []).forEach(ar => {
-        results.push({
-          name: ar.name,
-          artist: '',
-          image: ar.images[0]?.url,
-          uri: ar.uri,
-          id: ar.id,
-          type: 'Artist'
         });
       });
       renderDropdown(results);
@@ -361,9 +452,11 @@
     const cssWidth = Math.max(1, container.clientWidth - 40);
     const maxCols = Math.max(1, Math.floor(cssWidth / (TILE_W + GAP)));
 
-    const savedRows = savedAlbums.length ? Math.ceil(savedAlbums.length / maxCols) : 1;
+    const albumsRows = savedAlbums.length ? Math.ceil(savedAlbums.length / maxCols) : 0;
+    const playlistsRows = savedPlaylists.length ? Math.ceil(savedPlaylists.length / maxCols) : 0;
     let cssHeight = 40;
-    if (savedAlbums.length) cssHeight += HEADER_H + savedRows * (TILE_H + GAP);
+    if (savedAlbums.length) cssHeight += HEADER_H + albumsRows * (TILE_H + GAP);
+    if (savedPlaylists.length) cssHeight += HEADER_H + playlistsRows * (TILE_H + GAP);
     cssHeight = Math.max(cssHeight, container.clientHeight - 40);
 
     canvas.style.width = cssWidth + 'px';
@@ -438,12 +531,13 @@
       }
 
       if (item.type && item.type !== 'Saved Album') {
+        const label = item.type === 'Saved Playlist' ? 'Playlist' : item.type;
         ctx.fillStyle = 'rgba(0,0,0,0.75)';
         ctx.fillRect(x, itemY, 52, 20);
         ctx.fillStyle = '#e2c044';
         ctx.font = '10px oswald, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(item.type, x + 4, itemY + 14);
+        ctx.fillText(label, x + 4, itemY + 14);
       }
 
       drawText(item.name, x + TILE_W / 2, itemY + COVER_H + 16, TILE_W, 13, '#ffffff');
@@ -505,16 +599,23 @@
       return;
     }
 
-    if (!savedAlbums.length) {
+    if (!savedAlbums.length && !savedPlaylists.length) {
       ctx.fillStyle = '#888888';
       ctx.font = '16px source_serif_4, serif';
       ctx.textAlign = 'center';
-      ctx.fillText('No saved albums found.', cssW / 2, cssH / 2);
+      ctx.fillText('No saved albums or playlists found.', cssW / 2, cssH / 2);
       return;
     }
 
     const cols = Math.max(1, Math.floor(cssW / (TILE_W + GAP)));
-    drawSection(savedAlbums, 'Saved Albums', 20, cols);
+    let nextY = 20;
+    if (savedAlbums.length) {
+      nextY = drawSection(savedAlbums, 'Saved Albums', nextY, cols);
+      nextY += GAP;
+    }
+    if (savedPlaylists.length) {
+      drawSection(savedPlaylists, 'Saved Playlists', nextY, cols);
+    }
   }
 
   function getMousePos(e) {
@@ -539,10 +640,18 @@
   }
 
   canvas.addEventListener('click', (e) => {
-    const { mx, my } = getMousePos(e);
-    const item = findHitRegion(mx, my);
-    if (item && item.type === 'Saved Album') {
-      loadAlbumTracks(item.id, item.name, item.artist, item.image);
+    try {
+      const { mx, my } = getMousePos(e);
+      const item = findHitRegion(mx, my);
+      if (!item) return;
+      console.log('[explore] Clicked item:', item.type, item.name, item.id);
+      if (item.type === 'Saved Album') {
+        loadAlbumTracks(item.id, item.name, item.artist, item.image);
+      } else if (item.type === 'Saved Playlist') {
+        loadPlaylistTracks(item.id, item.name, item.image);
+      }
+    } catch (err) {
+      console.error('[explore] Click handler error:', err);
     }
   });
 
@@ -593,11 +702,12 @@
     const tabObserver = new MutationObserver(() => {
       if (exploreTab.classList.contains('active')) {
         getCredentials().then(() => {
-          if (credentials && savedAlbums.length === 0) {
-            fetchSavedAlbums().then(() => resize());
-          } else {
-            resize();
+          let p = Promise.resolve();
+          if (credentials) {
+            if (savedAlbums.length === 0) p = p.then(() => fetchSavedAlbums());
+            if (savedPlaylists.length === 0) p = p.then(() => fetchSavedPlaylists());
           }
+          p.then(() => resize());
         });
       }
     });
@@ -612,9 +722,27 @@
 
   (async function init() {
     await getCredentials();
-    await fetchSavedAlbums();
+    await Promise.all([fetchSavedAlbums(), fetchSavedPlaylists()]);
     resize();
     setTimeout(() => { resize(); }, 100);
     setTimeout(() => { resize(); }, 500);
   })();
+
+  // Diagnostic helper: run from DevTools console to see raw API response
+  window.diagnosePlaylist = async (playlistId) => {
+    if (!credentials) { console.warn('Not authenticated'); return; }
+    const endpoints = [
+      '/playlists/' + playlistId + '/items?limit=50&additional_types=track',
+      '/playlists/' + playlistId + '/tracks?limit=50',
+      '/playlists/' + playlistId
+    ];
+    for (const ep of endpoints) {
+      console.log('=== Testing:', ep, '===');
+      const result = await window.electronAPI.spotifyApi(ep);
+      console.log('Success:', result.success, 'Error:', result.error);
+      if (result.success) {
+        console.log('Raw data:', JSON.stringify(result.data, null, 2).substring(0, 2000));
+      }
+    }
+  };
 })();

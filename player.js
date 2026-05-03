@@ -5,6 +5,14 @@ let queue = [];
 let current = 0;
 let audioSource = null;
 
+// Convert a local filesystem path to a file:// URL so the HTML5 Audio element
+// can load it when the app is served from http://127.0.0.1:3000.
+function toFileUrl(p) {
+  if (!p) return '';
+  if (p.startsWith('file://') || p.startsWith('http://') || p.startsWith('https://')) return p;
+  return 'file://' + p;
+}
+
 /**
  * THE AUTO-CONNECTOR
  * This function handles the "wiring" and ensures it only happens once.
@@ -22,18 +30,19 @@ function ensureAudioConnection() {
       audioSource =
         window.visualizerAudioContext.createMediaElementSource(audio);
 
-      // 3. Connect to Butterchurn
-      window.myVisualizer.connectAudio(audioSource);
-
-      // 4. Connect to Speakers
+      // 3. Connect to Speakers (createMediaElementSource doesn't auto-play)
       audioSource.connect(window.visualizerAudioContext.destination);
 
-      console.log("[Player] Automatic connection established.");
+      console.log("[Player] Audio source created.");
     } catch (e) {
       console.error("[Player] Connection error:", e);
       return false;
     }
   }
+
+  // 4. Always reconnect to Butterchurn so it analyzes the local audio
+  // (needed when switching back from Spotify which uses a different source)
+  window.myVisualizer.connectAudio(audioSource);
 
   // 5. Always try to wake up the context
   if (window.visualizerAudioContext.state === "suspended") {
@@ -78,8 +87,14 @@ function loadTrack(index) {
   const activeQueue = getActiveQueue();
   current = index;
 
+  // Switching to local playback: pause Spotify and reset flag
+  if (window.isSpotifyPlayback) {
+    if (window.spotifyPause) window.spotifyPause();
+    window.isSpotifyPlayback = false;
+  }
+
   if (activeQueue.length > 0) {
-    audio.src = activeQueue[index];
+    audio.src = toFileUrl(activeQueue[index]);
 
     // We try to connect here, but the Play Button click is the "real" trigger
     connectToVisualizer();
@@ -226,7 +241,8 @@ function highlightActive() {
 
 function updateTrackName() {
   const activeQueue = getActiveQueue();
-  const name = activeQueue[current]?.split("/").pop() || "No track loaded";
+  const rawName = activeQueue[current]?.split("/").pop() || "No track loaded";
+  const name = rawName.replace(/\.[^/.]+$/, '');
   const ele = document.getElementById("track-name");
   ele.textContent = name;
 
@@ -277,6 +293,24 @@ document.getElementById("spotifyConnect").addEventListener("click", async () => 
   }
 });
 
+// --- Settings: Spotify Disconnect ---
+document.getElementById("spotifyDisconnect").addEventListener("click", async () => {
+  try {
+    const result = await window.electronAPI.spotifyDisconnect();
+    if (result.success) {
+      alert("Spotify disconnected. Please reconnect with your Client ID and Secret to refresh permissions.");
+    } else {
+      alert("Failed to disconnect: " + (result.error || "Unknown error"));
+    }
+  } catch (e) {
+    alert("Disconnect error: " + e.message);
+  }
+});
+
 // --- Expose for library.js ---
 window.loadPlayerTrack = loadTrack;
 window.renderPlaylist = renderPlaylist;
+window.pauseLocalAudio = () => {
+  audio.pause();
+  audio.src = '';
+};

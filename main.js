@@ -87,11 +87,13 @@ function createWindow(port) {
     height: height,
     minWidth: width/2,
     minHeight: 700,
+    title: 'TheVibezMachine',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
       webSecurity: false,
+      backgroundThrottling: false,
     },
   });
 
@@ -110,15 +112,45 @@ app.whenReady().then(async () => {
   // Start local HTTP server so the app loads from a secure context (localhost).
   // The Spotify Web Playback SDK requires EME/Widevine, which Chromium
   // blocks on file:// origins. Serving from http://127.0.0.1 fixes this.
+  // We use a fixed port (3000) so the origin is stable for Spotify allowlisting.
   try {
+    const FIXED_PORTS = [3000, 3001, 3002]
+    let port = null
+
     appServer = serveStatic(__dirname)
-    const port = await new Promise((resolve, reject) => {
-      appServer.listen(0, '127.0.0.1', (err) => {
-        if (err) reject(err)
-        else resolve(appServer.address().port)
+    for (const p of FIXED_PORTS) {
+    try {
+      await new Promise((resolve, reject) => {
+        appServer.listen(p, '127.0.0.1', (err) => {
+          if (err) reject(err)
+          else resolve(p)
+        })
       })
-    })
-    console.log(`[main] Local server running on http://127.0.0.1:${port}`)
+      port = p
+      break
+    } catch (err) {
+      console.log(`[main] Port ${p} is in use, trying next...`)
+    }
+  }
+
+  if (!port) {
+    console.error('[main] All fixed ports (3000-3002) are in use. Falling back to random port.')
+    console.error('[main] WARNING: Spotify streaming may not work if the origin port changes.')
+    try {
+      port = await new Promise((resolve, reject) => {
+        appServer.listen(0, '127.0.0.1', (err) => {
+          if (err) reject(err)
+          else resolve(appServer.address().port)
+        })
+      })
+    } catch (err) {
+      console.error('[main] Failed to start local server:', err)
+      createWindow(null)
+      return
+    }
+  }
+
+  console.log(`[main] Local server running on http://127.0.0.1:${port}`)
 
     await components.whenReady()
     console.log('Widevine components ready:', components.status())

@@ -1,0 +1,748 @@
+(function () {
+  const canvas = document.getElementById('explore-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const searchInput = document.getElementById('explore-search');
+  const searchBtn = document.getElementById('explore-search-btn');
+  const dropdown = document.getElementById('explore-dropdown');
+  const dropdownResults = dropdown ? dropdown.querySelector('.dropdown-results') : null;
+  const tracklistContainer = document.querySelector('#explore .library-tracklist');
+  const albumInfoContainer = document.querySelector('#explore .library-album-info');
+  const searchContainer = document.getElementById('explore-search-container');
+
+  let credentials = null;
+  let savedAlbums = [];
+  let savedPlaylists = [];
+  let apiError = null;
+  const imageCache = new Map();
+  let needsRedraw = true;
+  let hitRegions = [];
+  let hoveredItem = null;
+  let currentHoverScale = 1;
+  const HOVER_SCALE = 1.06;
+  const LERP_FACTOR = 0.12;
+
+  const TILE_W = 160;
+  const TILE_H = 210;
+  const GAP = 24;
+  const HEADER_H = 40;
+  const COVER_H = 150;
+
+  async function getCredentials() {
+    try {
+      credentials = await window.electronAPI.getSpotifyCredentials();
+    } catch (e) {
+      credentials = null;
+    }
+  }
+
+  async function fetchSavedAlbums() {
+    if (!credentials) return;
+    try {
+      const result = await window.electronAPI.spotifyApi('/me/albums?limit=50');
+      if (!result.success) {
+        apiError = result.error;
+        savedAlbums = [];
+        needsRedraw = true;
+        draw();
+        return;
+      }
+      apiError = null;
+      savedAlbums = (result.data.items || []).map(item => ({
+        name: item.album.name,
+        artist: item.album.artists.map(a => a.name).join(', '),
+        image: item.album.images[0]?.url,
+        uri: item.album.uri,
+        id: item.album.id,
+        type: 'Saved Album'
+      }));
+      preloadImages(savedAlbums);
+    } catch (e) {
+      apiError = e.message;
+      console.error('Failed to fetch saved albums:', e);
+      savedAlbums = [];
+    }
+    needsRedraw = true;
+    draw();
+  }
+
+  async function fetchSavedPlaylists() {
+    if (!credentials) return;
+    try {
+      const result = await window.electronAPI.spotifyApi('/me/playlists?limit=50');
+      if (!result.success) {
+        apiError = result.error;
+        savedPlaylists = [];
+        needsRedraw = true;
+        draw();
+        return;
+      }
+      apiError = null;
+      savedPlaylists = (result.data.items || []).map(item => ({
+        name: item.name,
+        artist: item.owner?.display_name || '',
+        image: item.images[0]?.url,
+        uri: item.uri,
+        id: item.id,
+        type: 'Saved Playlist'
+      }));
+      preloadImages(savedPlaylists);
+    } catch (e) {
+      apiError = e.message;
+      console.error('Failed to fetch saved playlists:', e);
+      savedPlaylists = [];
+    }
+    needsRedraw = true;
+    draw();
+  }
+
+  function showDropdown() {
+    if (dropdown) dropdown.classList.add('open');
+  }
+
+  function hideDropdown() {
+    if (dropdown) dropdown.classList.remove('open');
+  }
+
+  function showTracklist() {
+    const browse = document.querySelector('#explore .explore-browse');
+    const items = document.querySelector('#explore .items');
+    if (browse) browse.classList.add('hidden');
+    if (items) items.classList.add('showing-tracklist');
+    if (tracklistContainer) tracklistContainer.classList.remove('hidden');
+    if (albumInfoContainer) albumInfoContainer.classList.remove('hidden');
+  }
+
+  function hideTracklist() {
+    const browse = document.querySelector('#explore .explore-browse');
+    const items = document.querySelector('#explore .items');
+    if (browse) browse.classList.remove('hidden');
+    if (items) items.classList.remove('showing-tracklist');
+    if (tracklistContainer) {
+      tracklistContainer.classList.add('hidden');
+      tracklistContainer.innerHTML = '';
+    }
+    if (albumInfoContainer) {
+      albumInfoContainer.classList.add('hidden');
+      albumInfoContainer.innerHTML = '';
+    }
+    // Force canvas resync so hitRegions are rebuilt for the next frame
+    needsRedraw = true;
+    resize();
+  }
+
+  async function loadAlbumTracks(albumId, name, artist, image) {
+    if (!credentials) return;
+    try {
+      const result = await window.electronAPI.spotifyApi('/albums/' + albumId + '/tracks?limit=50');
+      if (!result.success) {
+        console.error('[explore] Album tracks API error:', result.error);
+        renderTracklist([], name, artist, image, 'Error loading album: ' + result.error);
+        return;
+      }
+      apiError = null;
+      const tracks = result.data.items || [];
+      renderTracklist(tracks, name, artist, image);
+    } catch (e) {
+      console.error('[explore] Failed to load album tracks:', e);
+      renderTracklist([], name, artist, image, 'Error: ' + e.message);
+    }
+  }
+
+  async function loadPlaylistTracks(playlistId, name, image) {
+    if (!credentials || !playlistId) {
+      console.warn('[explore] Cannot load playlist: missing credentials or id');
+      renderTracklist([], name, '', image, 'Cannot load playlist: missing credentials or ID');
+      return;
+    }
+    console.log('[explore] Loading playlist tracks for id:', playlistId);
+    try {
+      // Paginate through all tracks (max 50 per request)
+      let allItems = [];
+      let offset = 0;
+      const limit = 50;
+      let total = null;
+
+      while (true) {
+        const result = await window.electronAPI.spotifyApi(
+          '/playlists/' + playlistId + '/items?limit=' + limit + '&offset=' + offset + '&additional_types=track'
+        );
+        if (!result.success) {
+          console.error('[explore] Playlist tracks API error (offset ' + offset + '):', result.error);
+          const is403 = String(result.error).includes('403');
+          const msg = is403
+            ? 'Error loading playlist: ' + result.error + '\n\nIf this is a followed playlist (not owned by you), Spotify now restricts access. For owned playlists, try reconnecting Spotify in Settings to refresh your token with the latest permissions.'
+            : 'Error loading playlist: ' + result.error;
+          renderTracklist([], name, '', image, msg);
+          return;
+        }
+
+        const items = result.data.items || [];
+        allItems = allItems.concat(items);
+        total = result.data.total;
+        console.log('[explore] Fetched', items.length, 'items (offset', offset, 'of', total, ')');
+
+        if (items.length === 0 || allItems.length >= total) break;
+        offset += limit;
+      }
+
+      apiError = null;
+      console.log('[explore] Total items fetched:', allItems.length);
+      if (allItems.length > 0) {
+        console.log('[explore] First item raw:', JSON.stringify(allItems[0], null, 2));
+      }
+
+      const tracks = allItems.map(item => {
+        const track = item.item || item.track;
+        return {
+          name: track ? track.name : 'Unavailable',
+          artists: track && track.artists ? track.artists : [],
+          uri: track ? track.uri : '',
+          duration_ms: track ? track.duration_ms : 0,
+          is_local: item.is_local || false
+        };
+      }).filter(t => t.uri);
+
+      console.log('[explore] Playable tracks after filtering:', tracks.length);
+      if (tracks.length === 0) {
+        const hasLocal = allItems.some(i => i.is_local);
+        const allNull = allItems.length > 0 && allItems.every(i => !(i.item || i.track));
+        let msg = 'No playable tracks found in this playlist.';
+        if (allNull) msg += ' Spotify returned all tracks as unavailable. Try reconnecting Spotify in Settings to refresh your token with the latest permissions.';
+        else if (hasLocal) msg += ' This playlist may contain local files which Spotify cannot stream via the API.';
+        else msg += ' All tracks may be unavailable or region-locked.';
+        renderTracklist([], name, '', image, msg);
+        return;
+      }
+      renderTracklist(tracks, name, '', image);
+    } catch (e) {
+      console.error('[explore] Failed to load playlist tracks:', e);
+      renderTracklist([], name, '', image, 'Error: ' + e.message);
+    }
+  }
+
+  async function loadArtistTopTracks(artistId, name, image) {
+    if (!credentials) return;
+    try {
+      const result = await window.electronAPI.spotifyApi('/artists/' + artistId + '/top-tracks?market=US');
+      if (!result.success) {
+        console.error('[explore] Artist top tracks API error:', result.error);
+        renderTracklist([], name, '', image, 'Error loading artist: ' + result.error);
+        return;
+      }
+      apiError = null;
+      const tracks = result.data.tracks || [];
+      renderTracklist(tracks, name, '', image);
+    } catch (e) {
+      console.error('[explore] Failed to load artist top tracks:', e);
+      renderTracklist([], name, '', image, 'Error: ' + e.message);
+    }
+  }
+
+  function renderTracklist(tracks, name, artist, image, errorMsg) {
+    if (!tracklistContainer || !albumInfoContainer) return;
+
+    showTracklist();
+
+    tracklistContainer.innerHTML = '';
+    albumInfoContainer.innerHTML = '';
+
+    // Back button
+    const backBtn = document.createElement('div');
+    backBtn.className = 'library-back-btn';
+    backBtn.textContent = '← Back to Explore';
+    backBtn.addEventListener('click', hideTracklist);
+    tracklistContainer.appendChild(backBtn);
+
+    // Error message (if any)
+    if (errorMsg) {
+      const errDiv = document.createElement('div');
+      errDiv.style.color = '#e2c044';
+      errDiv.style.padding = '10px 15px';
+      errDiv.style.fontFamily = 'oswald, sans-serif';
+      errDiv.textContent = errorMsg;
+      tracklistContainer.appendChild(errDiv);
+    }
+
+    // Album info card
+    const infoCard = document.createElement('div');
+    infoCard.className = 'album-info-card';
+    if (image) {
+      infoCard.innerHTML = `
+        <img src="${image}" alt="${name}" class="album-cover-large">
+        <div class="album-name">${name}</div>
+        <div class="album-artist">${artist ? artist + ' · ' : ''}${tracks.length} tracks</div>
+        <button class="playlist-play-btn">Play</button>
+      `;
+    } else {
+      infoCard.innerHTML = `
+        <div class="album-cover-large no-cover">🎵</div>
+        <div class="album-name">${name}</div>
+        <div class="album-artist">${artist ? artist + ' · ' : ''}${tracks.length} tracks</div>
+        <button class="playlist-play-btn">Play</button>
+      `;
+    }
+    albumInfoContainer.appendChild(infoCard);
+
+    // Play all button
+    const playBtn = infoCard.querySelector('.playlist-play-btn');
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const firstIdx = tracks.findIndex(t => t.uri);
+      if (firstIdx >= 0) {
+        window.spotifyQueue = tracks;
+        window.spotifyCurrentIndex = firstIdx;
+        window.spotifyPlayTrack(tracks[firstIdx].uri);
+      } else {
+        console.warn('[explore] No playable tracks in this list');
+      }
+    });
+
+    // Set the global Spotify queue so prev/next works across the tracklist
+    window.spotifyQueue = tracks;
+
+    // Tracklist items
+    tracks.forEach((track, index) => {
+      const trackName = track.name || 'Unknown';
+      const trackArtists = track.artists ? track.artists.map(a => a.name).join(', ') : '';
+      const duration = fmtMs(track.duration_ms || 0);
+      const uri = track.uri || '';
+
+      const item = document.createElement('div');
+      item.className = 'tracklist-item';
+      item.innerHTML = `<span class="track-number">${index + 1}</span><span class="track-title">${trackName}</span>`;
+      item.addEventListener('click', () => {
+        if (uri) {
+          window.spotifyCurrentIndex = index;
+          window.spotifyPlayTrack(uri);
+          // Highlight active
+          document.querySelectorAll('#explore .library-tracklist .tracklist-item').forEach((el, i) => {
+            el.classList.toggle('active', i === index);
+          });
+        }
+      });
+      tracklistContainer.appendChild(item);
+    });
+  }
+
+  function fmtMs(ms) {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const sec = (s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  }
+
+  function renderDropdown(results) {
+    if (!dropdownResults) return;
+    dropdownResults.innerHTML = '';
+    if (!results.length) {
+      const empty = document.createElement('div');
+      empty.className = 'dropdown-item';
+      empty.textContent = 'No results';
+      dropdownResults.appendChild(empty);
+      showDropdown();
+      return;
+    }
+    results.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'dropdown-item';
+      const img = document.createElement('img');
+      img.src = item.image || '';
+      img.alt = '';
+      img.onerror = () => { img.classList.add('img-error'); };
+      const info = document.createElement('div');
+      info.className = 'dropdown-info';
+      const name = document.createElement('div');
+      name.className = 'dropdown-name';
+      name.textContent = item.name;
+      const meta = document.createElement('div');
+      meta.className = 'dropdown-meta';
+      meta.textContent = (item.artist ? item.artist + ' · ' : '') + item.type;
+      info.appendChild(name);
+      info.appendChild(meta);
+      el.appendChild(img);
+      el.appendChild(info);
+      el.addEventListener('click', () => {
+        if (item.type === 'Track') {
+          window.spotifyQueue = [item];
+          window.spotifyCurrentIndex = 0;
+          window.spotifyPlayTrack(item.uri);
+        } else if (item.type === 'Album') {
+          const id = item.uri.replace('spotify:album:', '');
+          loadAlbumTracks(id, item.name, item.artist, item.image);
+        } else if (item.type === 'Artist') {
+          const id = item.uri.replace('spotify:artist:', '');
+          loadArtistTopTracks(id, item.name, item.image);
+        }
+        hideDropdown();
+      });
+      dropdownResults.appendChild(el);
+    });
+    showDropdown();
+  }
+
+  async function doSearch(query) {
+    if (!credentials || !query.trim()) {
+      hideDropdown();
+      return;
+    }
+    try {
+      const endpoint = '/search?q=' + encodeURIComponent(query) + '&type=album,track&limit=10';
+      const result = await window.electronAPI.spotifyApi(endpoint);
+      if (!result.success) {
+        apiError = result.error;
+        hideDropdown();
+        needsRedraw = true;
+        draw();
+        return;
+      }
+      apiError = null;
+      const data = result.data;
+      const results = [];
+      (data.albums?.items || []).forEach(a => {
+        results.push({
+          name: a.name,
+          artist: a.artists.map(ar => ar.name).join(', '),
+          image: a.images[0]?.url,
+          uri: a.uri,
+          id: a.id,
+          type: 'Album'
+        });
+      });
+      (data.tracks?.items || []).forEach(t => {
+        results.push({
+          name: t.name,
+          artist: t.artists.map(ar => ar.name).join(', '),
+          image: t.album.images[0]?.url,
+          uri: t.uri,
+          id: t.id,
+          type: 'Track'
+        });
+      });
+      renderDropdown(results);
+    } catch (e) {
+      apiError = e.message;
+      console.error('Search failed:', e);
+      hideDropdown();
+      needsRedraw = true;
+      draw();
+    }
+  }
+
+  function preloadImages(items) {
+    items.forEach(item => {
+      if (!item.image || imageCache.has(item.image)) return;
+      const img = new Image();
+      img.onload = () => {
+        imageCache.set(item.image, img);
+        needsRedraw = true;
+        draw();
+      };
+      img.onerror = () => {
+        imageCache.set(item.image, null);
+      };
+      img.src = item.image;
+    });
+  }
+
+  function resize() {
+    const container = canvas.parentElement;
+    if (!container) return;
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = Math.max(1, container.clientWidth - 40);
+    const maxCols = Math.max(1, Math.floor(cssWidth / (TILE_W + GAP)));
+
+    const albumsRows = savedAlbums.length ? Math.ceil(savedAlbums.length / maxCols) : 0;
+    const playlistsRows = savedPlaylists.length ? Math.ceil(savedPlaylists.length / maxCols) : 0;
+    let cssHeight = 40;
+    if (savedAlbums.length) cssHeight += HEADER_H + albumsRows * (TILE_H + GAP);
+    if (savedPlaylists.length) cssHeight += HEADER_H + playlistsRows * (TILE_H + GAP);
+    cssHeight = Math.max(cssHeight, container.clientHeight - 40);
+
+    canvas.style.width = cssWidth + 'px';
+    canvas.style.height = cssHeight + 'px';
+    canvas.width = Math.max(1, Math.floor(cssWidth * dpr));
+    canvas.height = Math.max(1, Math.floor(cssHeight * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    needsRedraw = true;
+    draw();
+  }
+
+  function drawText(text, x, y, maxWidth, fontSize, color) {
+    ctx.font = `${fontSize}px oswald, sans-serif`;
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    const words = String(text || '').split(' ');
+    let line = '';
+    const lines = [];
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i] + ' ';
+      if (ctx.measureText(testLine).width > maxWidth && i > 0) {
+        lines.push(line.trim());
+        line = words[i] + ' ';
+      } else {
+        line = testLine;
+      }
+    }
+    lines.push(line.trim());
+    lines.slice(0, 2).forEach((l, idx) => {
+      ctx.fillText(l, x, y + idx * (fontSize + 2));
+    });
+  }
+
+  function drawSection(items, title, startY, cols) {
+    const totalGridW = cols * (TILE_W + GAP) - GAP;
+    const cssW = canvas.width / (window.devicePixelRatio || 1);
+    const startX = (cssW - totalGridW) / 2;
+
+    ctx.font = 'bold 18px oswald, sans-serif';
+    ctx.fillStyle = '#e2c044';
+    ctx.textAlign = 'left';
+    ctx.fillText(title, startX, startY + 24);
+
+    let y = startY + HEADER_H;
+    items.forEach((item, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = startX + col * (TILE_W + GAP);
+      const itemY = y + row * (TILE_H + GAP);
+      const isHovered = hoveredItem === item;
+
+      hitRegions.push({ x, y: itemY, w: TILE_W, h: TILE_H, item });
+
+      if (isHovered) {
+        ctx.save();
+        const cx = x + TILE_W / 2;
+        const cy = itemY + TILE_H / 2;
+        ctx.translate(cx, cy);
+        ctx.scale(currentHoverScale, currentHoverScale);
+        ctx.translate(-cx, -cy);
+      }
+
+      if (item.image && imageCache.get(item.image)) {
+        ctx.drawImage(imageCache.get(item.image), x, itemY, TILE_W, COVER_H);
+      } else {
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(x, itemY, TILE_W, COVER_H);
+        ctx.fillStyle = '#888';
+        ctx.font = '40px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('♪', x + TILE_W / 2, itemY + COVER_H / 2 + 14);
+      }
+
+      if (item.type && item.type !== 'Saved Album') {
+        const label = item.type === 'Saved Playlist' ? 'Playlist' : item.type;
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.fillRect(x, itemY, 52, 20);
+        ctx.fillStyle = '#e2c044';
+        ctx.font = '10px oswald, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, x + 4, itemY + 14);
+      }
+
+      drawText(item.name, x + TILE_W / 2, itemY + COVER_H + 16, TILE_W, 13, '#ffffff');
+      if (item.artist) {
+        drawText(item.artist, x + TILE_W / 2, itemY + COVER_H + 42, TILE_W, 11, '#888888');
+      }
+
+      if (isHovered) ctx.restore();
+    });
+
+    return y + Math.ceil(items.length / cols) * (TILE_H + GAP);
+  }
+
+  function draw() {
+    const prevScale = currentHoverScale;
+    const target = hoveredItem ? HOVER_SCALE : 1;
+    currentHoverScale += (target - currentHoverScale) * LERP_FACTOR;
+
+    if (!needsRedraw && Math.abs(currentHoverScale - prevScale) < 0.001) return;
+    needsRedraw = false;
+
+    const cssW = canvas.width / (window.devicePixelRatio || 1);
+    const cssH = canvas.height / (window.devicePixelRatio || 1);
+    ctx.clearRect(0, 0, cssW, cssH);
+    hitRegions = [];
+
+    if (!credentials) {
+      ctx.fillStyle = '#888888';
+      ctx.font = '16px source_serif_4, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Connect Spotify in Settings to explore.', cssW / 2, cssH / 2);
+      return;
+    }
+
+    if (apiError) {
+      ctx.fillStyle = '#e2c044';
+      ctx.font = 'bold 16px source_serif_4, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Error:', cssW / 2, cssH / 2 - 20);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px source_serif_4, serif';
+      const maxLine = cssW - 40;
+      const words = String(apiError).split(' ');
+      let line = '';
+      const lines = [];
+      for (let i = 0; i < words.length; i++) {
+        const testLine = line + words[i] + ' ';
+        if (ctx.measureText(testLine).width > maxLine && i > 0) {
+          lines.push(line.trim());
+          line = words[i] + ' ';
+        } else {
+          line = testLine;
+        }
+      }
+      lines.push(line.trim());
+      lines.forEach((l, idx) => {
+        ctx.fillText(l, cssW / 2, cssH / 2 + 10 + idx * 18);
+      });
+      return;
+    }
+
+    if (!savedAlbums.length && !savedPlaylists.length) {
+      ctx.fillStyle = '#888888';
+      ctx.font = '16px source_serif_4, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No saved albums or playlists found.', cssW / 2, cssH / 2);
+      return;
+    }
+
+    const cols = Math.max(1, Math.floor(cssW / (TILE_W + GAP)));
+    let nextY = 20;
+    if (savedAlbums.length) {
+      nextY = drawSection(savedAlbums, 'Saved Albums', nextY, cols);
+      nextY += GAP;
+    }
+    if (savedPlaylists.length) {
+      drawSection(savedPlaylists, 'Saved Playlists', nextY, cols);
+    }
+  }
+
+  function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const cssW = canvas.width / (window.devicePixelRatio || 1);
+    const cssH = canvas.height / (window.devicePixelRatio || 1);
+    const scaleX = cssW / rect.width;
+    const scaleY = cssH / rect.height;
+    return {
+      mx: (e.clientX - rect.left) * scaleX,
+      my: (e.clientY - rect.top) * scaleY
+    };
+  }
+
+  function findHitRegion(mx, my) {
+    for (const region of hitRegions) {
+      if (mx >= region.x && mx <= region.x + region.w && my >= region.y && my <= region.y + region.h) {
+        return region.item;
+      }
+    }
+    return null;
+  }
+
+  canvas.addEventListener('click', (e) => {
+    try {
+      const { mx, my } = getMousePos(e);
+      const item = findHitRegion(mx, my);
+      if (!item) return;
+      console.log('[explore] Clicked item:', item.type, item.name, item.id);
+      if (item.type === 'Saved Album') {
+        loadAlbumTracks(item.id, item.name, item.artist, item.image);
+      } else if (item.type === 'Saved Playlist') {
+        loadPlaylistTracks(item.id, item.name, item.image);
+      }
+    } catch (err) {
+      console.error('[explore] Click handler error:', err);
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    const { mx, my } = getMousePos(e);
+    const prevHovered = hoveredItem;
+    hoveredItem = findHitRegion(mx, my);
+    if (hoveredItem !== prevHovered) {
+      canvas.style.cursor = hoveredItem ? 'pointer' : 'default';
+      needsRedraw = true;
+      draw();
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    if (hoveredItem) {
+      hoveredItem = null;
+      canvas.style.cursor = 'default';
+      needsRedraw = true;
+      draw();
+    }
+  });
+
+  searchBtn.addEventListener('click', () => doSearch(searchInput.value));
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doSearch(searchInput.value);
+  });
+
+  // Close dropdown on Escape or clicking outside
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideDropdown();
+  });
+  document.addEventListener('click', (e) => {
+    if (!dropdown) return;
+    const container = document.getElementById('explore-search-container');
+    if (container && !container.contains(e.target)) {
+      hideDropdown();
+    }
+  });
+
+  const resizeObserver = new ResizeObserver(() => {
+    resize();
+  });
+  resizeObserver.observe(canvas.parentElement);
+
+  const exploreTab = document.getElementById('explore');
+  if (exploreTab) {
+    const tabObserver = new MutationObserver(() => {
+      if (exploreTab.classList.contains('active')) {
+        getCredentials().then(() => {
+          let p = Promise.resolve();
+          if (credentials) {
+            if (savedAlbums.length === 0) p = p.then(() => fetchSavedAlbums());
+            if (savedPlaylists.length === 0) p = p.then(() => fetchSavedPlaylists());
+          }
+          p.then(() => resize());
+        });
+      }
+    });
+    tabObserver.observe(exploreTab, { attributes: true });
+  }
+
+  function animate() {
+    draw();
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  (async function init() {
+    await getCredentials();
+    await Promise.all([fetchSavedAlbums(), fetchSavedPlaylists()]);
+    resize();
+    setTimeout(() => { resize(); }, 100);
+    setTimeout(() => { resize(); }, 500);
+  })();
+
+  // Diagnostic helper: run from DevTools console to see raw API response
+  window.diagnosePlaylist = async (playlistId) => {
+    if (!credentials) { console.warn('Not authenticated'); return; }
+    const endpoints = [
+      '/playlists/' + playlistId + '/items?limit=50&additional_types=track',
+      '/playlists/' + playlistId + '/tracks?limit=50',
+      '/playlists/' + playlistId
+    ];
+    for (const ep of endpoints) {
+      console.log('=== Testing:', ep, '===');
+      const result = await window.electronAPI.spotifyApi(ep);
+      console.log('Success:', result.success, 'Error:', result.error);
+      if (result.success) {
+        console.log('Raw data:', JSON.stringify(result.data, null, 2).substring(0, 2000));
+      }
+    }
+  };
+})();

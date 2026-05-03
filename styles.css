@@ -635,8 +635,8 @@ footer {
 #settings .items {
   padding: 20px;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   min-height: 100%;
   width: calc(100% - 138px);
   /* Accounts for blade width */

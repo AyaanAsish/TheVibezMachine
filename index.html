@@ -13,15 +13,13 @@
         <!-- Blades -->
         <!-- Library -->
         <div class="bladeStrip activeBlade" id="blade-library">
-            <div class="activeIndicator"></div>
             <div class="labelBorder">
                 <div class="bladeLabel">Library</div>
             </div>
         </div>
-        
+
         <!-- Explore -->
         <div class="bladeStrip" id="blade-explore">
-            <div class="activeIndicator"></div>
             <div class="labelBorder">
                 <div class="bladeLabel">Explore</div>
             </div>
@@ -29,7 +27,6 @@
 
         <!-- Visualizer  -->
         <div class="bladeStrip" id="blade-visualizer">
-            <div class="activeIndicator"></div>
             <div class="labelBorder">
                 <div class="bladeLabel">Visualizer</div>
             </div>
@@ -37,7 +34,6 @@
 
         <!-- Settings -->
         <div class="bladeStrip" id="blade-settings">
-            <div class="activeIndicator"></div>
             <div class="labelBorder">
                 <div class="bladeLabel">Settings</div>
             </div>
@@ -56,7 +52,20 @@
 
             <!-- Explore -->
             <div class="tab" id="explore">
-                <div class="items"></div>
+                <div class="items">
+                    <div class="explore-browse">
+                        <div id="explore-search-container">
+                            <input type="text" id="explore-search" placeholder="Search Spotify..." />
+                            <button id="explore-search-btn">Search</button>
+                            <div id="explore-dropdown">
+                                <div class="dropdown-results"></div>
+                            </div>
+                        </div>
+                        <canvas id="explore-canvas"></canvas>
+                    </div>
+                    <div class="library-tracklist"></div>
+                    <div class="library-album-info"></div>
+                </div>
             </div>
 
         <!-- Visualizer-->
@@ -86,15 +95,14 @@
                         <button id="btn-open">Open Files</button>
                         <label>Please Format Media: <b class="keyword">"Author | Title"</b></label>
                     </div>
-                    <!--
-                    <div id="spotifyAuth" style="margin-top: 40px; border-top: 2px solid #483666; padding-top: 30px;">
+                    <div id="spotifyAuth">
                       <label>Spotify Client ID</label>
                       <textarea id="spotifyClientId"></textarea>
                       <label>Spotify Client Secret</label>
                       <textarea id="spotifyClientSecret"></textarea>
                       <button id="spotifyConnect">Connect to Spotify</button>
+                      <button id="spotifyDisconnect">Disconnect Spotify</button>
                     </div>
-                    -->
                 </div>
             </div>
         </div>
@@ -140,9 +148,14 @@
     <!-- Scripts -->
     <script src="ui.js"></script>
     <script src="library.js"></script>
+    <script src="explore.js"></script>
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script src="spotify-player.js"></script>
     <script src="player.js"></script>
     <script src="./vendor/butterchurn.min.js"></script>
     <script src="./vendor/butterchurnPresets.min.js"></script>
     <script src="visualizer.js"></script>
+    <script src="spotify-visualizer.js"></script>
   </body>
+
 </html>

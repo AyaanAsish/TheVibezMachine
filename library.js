@@ -15,9 +15,9 @@ async function loadLibrary() {
   }
 
   // Hide tracklist and album info, show grid
-  tracklistContainer.style.display = 'none'
-  albumInfo.style.display = 'none'
-  libraryGrid.style.display = 'grid'
+  tracklistContainer.classList.add('hidden')
+  albumInfo.classList.add('hidden')
+  libraryGrid.classList.remove('hidden')
   libraryGrid.classList.remove('hide-grid')
   libraryGrid.innerHTML = ''
 
@@ -109,10 +109,10 @@ function loadPlaylist(name, audioFiles, coverImage) {
   if (!tracklistContainer || !albumInfo) return
 
   // Hide grid, show and clear tracklist and album info
-  libraryGrid.style.display = 'none'
+  libraryGrid.classList.add('hidden')
   libraryGrid.classList.add('hide-grid')
-  tracklistContainer.style.display = 'flex'
-  albumInfo.style.display = 'flex'
+  tracklistContainer.classList.remove('hidden')
+  albumInfo.classList.remove('hidden')
   tracklistContainer.replaceChildren()
   albumInfo.replaceChildren()
 

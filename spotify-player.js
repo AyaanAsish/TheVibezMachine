@@ -140,6 +140,9 @@
         if (state.paused && !window.isSpotifyPlayback) {
           return;
         }
+        if (!window.isSpotifyPlayback) {
+          if (window.pauseLocalAudio) window.pauseLocalAudio();
+        }
         window.isSpotifyPlayback = true;
         updatePlayerUI(state);
 

@@ -34,7 +34,8 @@ function serveStatic(root) {
     let filePath = path.resolve(path.join(root, pathname))
 
     // Prevent path traversal outside root
-    if (!filePath.startsWith(path.resolve(root))) {
+    const relative = path.relative(path.resolve(root), filePath)
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
       res.writeHead(403)
       res.end('Forbidden')
       return
@@ -157,7 +158,7 @@ app.whenReady().then(async () => {
 
     // Allow encrypted-media for Spotify Web Playback SDK
     session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-      const allowed = ['encrypted-media', 'media', 'mediaKeySystemAccess']
+      const allowed = ['encrypted-media', 'media', 'mediaKeySystemAccess', 'display-capture']
       callback(allowed.includes(permission))
     })
 

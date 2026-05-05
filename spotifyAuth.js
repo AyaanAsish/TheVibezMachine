@@ -2,8 +2,9 @@ const http = require('http')
 const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
+const { app, shell } = require('electron')
 
-const TOKEN_FILE = path.join(__dirname, '.spotify-auth.json')
+const TOKEN_FILE = path.join(app.getPath('userData'), '.spotify-auth.json')
 
 // Store for Spotify credentials
 let spotifyCredentials = null
@@ -228,7 +229,6 @@ async function spotifyAuth(_event, clientId, clientSecret) {
     pendingSpotifyAuth = { clientId, clientSecret, resolve }
 
     // Open browser for user to authorize
-    const { shell } = require('electron')
     shell.openExternal(authUrl)
 
     // Start callback server
@@ -317,7 +317,7 @@ async function spotifyAuth(_event, clientId, clientSecret) {
     })
 
     spotifyCallbackServer = server
-    server.listen(8080, () => {
+    server.listen(8080, '127.0.0.1', () => {
       console.log('Spotify callback server listening on port 8080')
     })
 

@@ -8,7 +8,6 @@
   const dropdownResults = dropdown ? dropdown.querySelector('.dropdown-results') : null;
   const tracklistContainer = document.querySelector('#explore .library-tracklist');
   const albumInfoContainer = document.querySelector('#explore .library-album-info');
-  const searchContainer = document.getElementById('explore-search-container');
 
   let credentials = null;
   let savedAlbums = [];

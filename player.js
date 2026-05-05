@@ -10,7 +10,8 @@ let audioSource = null;
 function toFileUrl(p) {
   if (!p) return '';
   if (p.startsWith('file://') || p.startsWith('http://') || p.startsWith('https://')) return p;
-  return 'file://' + p;
+  const normalized = p.replace(/\\/g, '/');
+  return 'file:///' + normalized.replace(/^\/+/, '');
 }
 
 /**
@@ -29,6 +30,7 @@ function ensureAudioConnection() {
     try {
       audioSource =
         window.visualizerAudioContext.createMediaElementSource(audio);
+      window.localAudioSource = audioSource;
 
       // 3. Connect to Speakers (createMediaElementSource doesn't auto-play)
       audioSource.connect(window.visualizerAudioContext.destination);
@@ -52,9 +54,6 @@ function ensureAudioConnection() {
   return true;
 }
 
-function connectToVisualizer() {
-  ensureAudioConnection();
-}
 
 function getActiveQueue() {
   return window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
@@ -97,7 +96,7 @@ function loadTrack(index) {
     audio.src = toFileUrl(activeQueue[index]);
 
     // We try to connect here, but the Play Button click is the "real" trigger
-    connectToVisualizer();
+    ensureAudioConnection();
 
     audio
       .play()
@@ -124,7 +123,7 @@ document.getElementById("btn-play").addEventListener("click", () => {
     return;
   }
 
-  connectToVisualizer();
+  ensureAudioConnection();
 
   if (audio.paused) {
     audio.play();
@@ -187,7 +186,7 @@ function renderPlaylist() {
   list.innerHTML = "";
   activeQueue.forEach((f, i) => {
     const li = document.createElement("li");
-    li.textContent = f.split("/").pop();
+    li.textContent = f.replace(/\\/g, '/').split('/').pop();
     li.addEventListener("click", () => loadTrack(i));
     list.appendChild(li);
   });
@@ -241,7 +240,7 @@ function highlightActive() {
 
 function updateTrackName() {
   const activeQueue = getActiveQueue();
-  const rawName = activeQueue[current]?.split("/").pop() || "No track loaded";
+  const rawName = activeQueue[current]?.replace(/\\/g, '/').split('/').pop() || "No track loaded";
   const name = rawName.replace(/\.[^/.]+$/, '');
   const ele = document.getElementById("track-name");
   ele.textContent = name;
@@ -312,5 +311,4 @@ window.loadPlayerTrack = loadTrack;
 window.renderPlaylist = renderPlaylist;
 window.pauseLocalAudio = () => {
   audio.pause();
-  audio.src = '';
 };

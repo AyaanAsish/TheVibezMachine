@@ -15,9 +15,9 @@ async function loadLibrary() {
   }
 
   // Hide tracklist and album info, show grid
-  tracklistContainer.style.display = 'none'
-  albumInfo.style.display = 'none'
-  libraryGrid.style.display = 'grid'
+  tracklistContainer.classList.add('hidden')
+  albumInfo.classList.add('hidden')
+  libraryGrid.classList.remove('hidden')
   libraryGrid.classList.remove('hide-grid')
   libraryGrid.innerHTML = ''
 
@@ -48,7 +48,7 @@ async function loadLibrary() {
       }
     }
   } else if (result.audioFiles.length > 0) {
-    const playlistName = libraryPath.split('/').pop()
+    const playlistName = libraryPath.replace(/\\/g, '/').split('/').pop()
     createPlaylistCard(libraryGrid, playlistName, result.audioFiles, result.coverImage)
   } else {
     const msg = document.createElement('p')
@@ -69,7 +69,7 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
 
   if (coverImage) {
     const img = document.createElement('img')
-    img.src = 'file://' + coverImage
+    img.src = 'file:///' + coverImage.replace(/\\/g, '/').replace(/^\/+/, '')
     img.alt = name
     coverImg.appendChild(img)
   } else { // No image
@@ -79,8 +79,8 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
   // Playlist Info
   const info = document.createElement('div')
   info.className = 'playlist-info'
-  const artistName = name.split('|')[1] || 'No Author'
-  info.innerHTML = `<span class="playlist-name">${name.split('|')[0]}</span><span class="playlist-artist">${artistName}</span>`
+  const artistName = name.split(' - ')[0] || 'No Author'
+  info.innerHTML = `<span class="playlist-name">${name.split(' - ')[1]}</span><span class="playlist-artist">${artistName}</span>`
 
   // Handle Click
   card.addEventListener('click', function(e) {
@@ -109,10 +109,10 @@ function loadPlaylist(name, audioFiles, coverImage) {
   if (!tracklistContainer || !albumInfo) return
 
   // Hide grid, show and clear tracklist and album info
-  libraryGrid.style.display = 'none'
+  libraryGrid.classList.add('hidden')
   libraryGrid.classList.add('hide-grid')
-  tracklistContainer.style.display = 'flex'
-  albumInfo.style.display = 'flex'
+  tracklistContainer.classList.remove('hidden')
+  albumInfo.classList.remove('hidden')
   tracklistContainer.replaceChildren()
   albumInfo.replaceChildren()
 
@@ -143,7 +143,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
 
   if (coverImage) {
     infoCard.innerHTML = `
-      <img src="file://${coverImage}" alt="${name}" class="album-cover-large">
+      <img src="file:///${coverImage.replace(/\\/g, '/').replace(/^\/+/, '')}" alt="${name}" class="album-cover-large">
       <div class="album-name">${name}</div>
       <div class="album-artist">${audioFiles.length} tracks</div>
       <button class="playlist-play-btn">Play</button>

@@ -1,14 +1,13 @@
-const { app, BrowserWindow, ipcMain, dialog, screen, shell, components, session } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, screen, shell } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const http = require('http')
 const url = require('url')
-const { registerSpotifyIpcs } = require('./spotifyAuth')
+const { registerSpotifyIpcs, onAuthSuccess } = require('./spotifyScripts/spotifyAuth')
+const { registerLibrespotIpcs, initLibrespot, stopLibrespot } = require('./spotifyScripts/librespot-main')
 
-// Allow the Spotify Web Playback SDK to create its audio context without a user gesture
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
-// MIME types for the local static file server
 const mimeTypes = {
   '.html': 'text/html',
   '.js': 'application/javascript',
@@ -33,7 +32,6 @@ function serveStatic(root) {
     let pathname = decodeURIComponent(parsed.pathname)
     let filePath = path.resolve(path.join(root, pathname))
 
-    // Prevent path traversal outside root
     const relative = path.relative(path.resolve(root), filePath)
     if (relative.startsWith('..') || path.isAbsolute(relative)) {
       res.writeHead(403)
@@ -45,7 +43,7 @@ function serveStatic(root) {
       if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
         filePath = path.join(filePath, 'index.html')
       }
-    } catch (_e) { /* ignore */ }
+    } catch (_e) {}
 
     if (pathname === '/' || pathname === '') {
       filePath = path.join(root, 'index.html')
@@ -55,13 +53,8 @@ function serveStatic(root) {
 
     fs.readFile(filePath, (err, data) => {
       if (err) {
-        if (err.code === 'ENOENT') {
-          res.writeHead(404)
-          res.end('Not found')
-        } else {
-          res.writeHead(500)
-          res.end('Server error')
-        }
+        res.writeHead(err.code === 'ENOENT' ? 404 : 500)
+        res.end(err.code === 'ENOENT' ? 'Not found' : 'Server error')
         return
       }
       let contentType = mimeTypes[ext] || 'application/octet-stream'
@@ -86,17 +79,17 @@ function createWindow(port) {
   const win = new BrowserWindow({
     width: width,
     height: height,
-    minWidth: width/2,
+    minWidth: width / 2,
     minHeight: 700,
     title: 'TheVibezMachine',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "playerScripts/preload.js"),
       webSecurity: false,
       backgroundThrottling: false,
     },
-  });
+  })
 
   if (port) {
     console.log(`[main] Loading app from http://127.0.0.1:${port}`)
@@ -110,76 +103,58 @@ function createWindow(port) {
 }
 
 app.whenReady().then(async () => {
-  // Start local HTTP server so the app loads from a secure context (localhost).
-  // The Spotify Web Playback SDK requires EME/Widevine, which Chromium
-  // blocks on file:// origins. Serving from http://127.0.0.1 fixes this.
-  // We use a fixed port (3000) so the origin is stable for Spotify allowlisting.
   try {
     const FIXED_PORTS = [3000, 3001, 3002]
     let port = null
 
     appServer = serveStatic(__dirname)
     for (const p of FIXED_PORTS) {
-    try {
-      await new Promise((resolve, reject) => {
-        appServer.listen(p, '127.0.0.1', (err) => {
-          if (err) reject(err)
-          else resolve(p)
+      try {
+        await new Promise((resolve, reject) => {
+          appServer.listen(p, '127.0.0.1', (err) => {
+            if (err) reject(err)
+            else resolve(p)
+          })
         })
-      })
-      port = p
-      break
-    } catch (err) {
-      console.log(`[main] Port ${p} is in use, trying next...`)
-    }
-  }
-
-  if (!port) {
-    console.error('[main] All fixed ports (3000-3002) are in use. Falling back to random port.')
-    console.error('[main] WARNING: Spotify streaming may not work if the origin port changes.')
-    try {
-      port = await new Promise((resolve, reject) => {
-        appServer.listen(0, '127.0.0.1', (err) => {
-          if (err) reject(err)
-          else resolve(appServer.address().port)
-        })
-      })
-    } catch (err) {
-      console.error('[main] Failed to start local server:', err)
-      createWindow(null)
-      return
-    }
-  }
-
-  console.log(`[main] Local server running on http://127.0.0.1:${port}`)
-
-    await components.whenReady()
-    console.log('Widevine components ready:', components.status())
-
-    // Allow encrypted-media for Spotify Web Playback SDK
-    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-      const allowed = ['encrypted-media', 'media', 'mediaKeySystemAccess', 'display-capture']
-      callback(allowed.includes(permission))
-    })
-
-    // Mask User-Agent for Spotify domains to avoid CDN blocks on non-standard Electron builds
-    session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-      if (details.url && (details.url.includes('spotify.com') || details.url.includes('scdn.co'))) {
-        details.requestHeaders['User-Agent'] = ua
+        port = p
+        break
+      } catch (err) {
+        console.log(`[main] Port ${p} is in use, trying next...`)
       }
-      callback({ cancel: false, requestHeaders: details.requestHeaders })
-    })
+    }
+
+    if (!port) {
+      console.error('[main] All fixed ports are in use. Falling back to random port.')
+      try {
+        port = await new Promise((resolve, reject) => {
+          appServer.listen(0, '127.0.0.1', (err) => {
+            if (err) reject(err)
+            else resolve(appServer.address().port)
+          })
+        })
+      } catch (err) {
+        console.error('[main] Failed to start local server:', err)
+        createWindow(null)
+        return
+      }
+    }
+
+    console.log(`[main] Local server running on http://127.0.0.1:${port}`)
 
     createWindow(port)
+
+    const allWindows = BrowserWindow.getAllWindows()
+    if (allWindows.length > 0) {
+      initLibrespot(allWindows[0])
+    }
   } catch (err) {
     console.error('[main] Failed to start local server:', err)
-    console.log('[main] Falling back to file://')
     createWindow(null)
   }
 })
 
 app.on('window-all-closed', () => {
+  stopLibrespot()
   if (appServer) appServer.close()
   app.quit()
 })
@@ -201,6 +176,7 @@ ipcMain.handle('scan-folder', async (_event, folderPath) => {
 
     const folders = []
     const audioFiles = []
+    let coverImage = null
 
     for (const entry of entries) {
       const fullPath = path.join(folderPath, entry.name)
@@ -211,17 +187,11 @@ ipcMain.handle('scan-folder', async (_event, folderPath) => {
         if (audioExt.includes(ext)) {
           audioFiles.push({ name: entry.name, path: fullPath })
         }
-      }
-    }
-
-    // Check for album cover
-    let coverImage = null
-    for (const entry of entries) {
-      const name = entry.name.toLowerCase()
-      if (imageExt.includes(path.extname(name).toLowerCase()) &&
-          (name === 'cover.jpg' || name === 'cover.png' || name === 'folder.jpg' || name === 'folder.png' || name === 'album.jpg' || name === 'album.png')) {
-        coverImage = path.join(folderPath, entry.name)
-        break
+        const name = entry.name.toLowerCase()
+        if (!coverImage && imageExt.includes(path.extname(name).toLowerCase()) &&
+            ['cover.jpg', 'cover.png', 'folder.jpg', 'folder.png', 'album.jpg', 'album.png'].includes(name)) {
+          coverImage = path.join(folderPath, entry.name)
+        }
       }
     }
 
@@ -233,3 +203,9 @@ ipcMain.handle('scan-folder', async (_event, folderPath) => {
 })
 
 registerSpotifyIpcs(ipcMain)
+registerLibrespotIpcs(ipcMain)
+
+onAuthSuccess(() => {
+  const wins = BrowserWindow.getAllWindows()
+  if (wins.length > 0) initLibrespot(wins[0])
+})

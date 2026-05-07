@@ -87,6 +87,7 @@ function loadTrack(index) {
   current = index;
 
   if (window.isSpotifyPlayback) {
+    window.lastLocalSwitchTime = Date.now();
     if (window.stopSpotifyAudio) window.stopSpotifyAudio();
     if (window.electronAPI?.librespotPause) window.electronAPI.librespotPause();
     window.isSpotifyPlayback = false;
@@ -124,15 +125,32 @@ function loadTrack(index) {
 }
 
 // --- Controls ---
-document.getElementById("btn-play").addEventListener("click", () => {
+document.getElementById("btn-play").addEventListener("click", async () => {
   if (window.isSpotifyPlayback) {
-    if (window.startSpotifyAudio) window.startSpotifyAudio();
-    if (window.spotifyIsPlaying) {
-      window.electronAPI.librespotPause();
-    } else {
-      window.electronAPI.librespotPlay();
+    if (window.spotifyStatePending) return
+    if (window.startSpotifyAudio) window.startSpotifyAudio()
+
+    const wasPlaying = window.spotifyIsPlaying
+    const target = wasPlaying ? 'pause' : 'play'
+    window.spotifyStatePending = target
+
+    // Optimistic UI update
+    window.spotifyIsPlaying = !wasPlaying
+    document.getElementById('btn-play').textContent = wasPlaying ? '▶' : '⏸'
+
+    const ipcFn = wasPlaying ? window.electronAPI.librespotPause : window.electronAPI.librespotPlay
+    const result = await ipcFn()
+
+    window.spotifyStatePending = null
+
+    if (result && result.state) {
+      const actualPlaying = result.state === 'playing'
+      if (actualPlaying !== window.spotifyIsPlaying) {
+        window.spotifyIsPlaying = actualPlaying
+        document.getElementById('btn-play').textContent = actualPlaying ? '⏸' : '▶'
+      }
     }
-    return;
+    return
   }
 
   ensureAudioConnection();
@@ -390,6 +408,7 @@ window.spotifyPlayTrack = async (uri) => {
 
   if (!deviceId) {
     console.error('[player.js] No librespot device ID available');
+    window.lastLocalSwitchTime = Date.now();
     window.isSpotifyPlayback = false;
     window.spotifyIsPlaying = false;
     if (window.stopSpotifyAudio) window.stopSpotifyAudio();
@@ -407,6 +426,7 @@ window.spotifyPlayTrack = async (uri) => {
 
   if (!result.success) {
     console.error('[player.js] Failed to play Spotify track:', result.error);
+    window.lastLocalSwitchTime = Date.now();
     window.isSpotifyPlayback = false;
     window.spotifyIsPlaying = false;
     if (window.stopSpotifyAudio) window.stopSpotifyAudio();

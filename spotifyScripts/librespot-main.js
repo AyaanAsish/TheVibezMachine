@@ -10,6 +10,7 @@ let librespotHost = null
 let currentWindow = null
 let deviceId = null
 let librespotCredentials = null
+let mainSpotifyIsPlaying = false
 
 function loadOrCreateDeviceId() {
   try {
@@ -73,6 +74,12 @@ async function initLibrespot(win) {
         }
       },
       (event) => {
+        if (event.type === 'playing') {
+          mainSpotifyIsPlaying = true
+        } else if (event.type === 'paused' || event.type === 'stopped' || event.type === 'end_of_track') {
+          mainSpotifyIsPlaying = false
+        }
+
         if (event.type === 'health' || event.type === 'metric') {
           if (currentWindow && !currentWindow.isDestroyed()) {
             currentWindow.webContents.send('spotify-event', event)
@@ -111,38 +118,40 @@ function getLibrespotDeviceId() {
 
 function registerLibrespotIpcs(ipcMain) {
   ipcMain.handle('librespot-pause', () => {
-    if (!librespotHost) return { success: false, error: 'Not connected' }
+    if (!librespotHost) return { success: false, error: 'Not connected', state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
+    if (!mainSpotifyIsPlaying) return { success: true, state: 'paused' }
     try {
       librespotHost.pause()
-      return { success: true }
+      return { success: true, state: 'paused' }
     } catch (e) {
-      return { success: false, error: e.message }
+      return { success: false, error: e.message, state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
     }
   })
 
   ipcMain.handle('librespot-play', () => {
-    if (!librespotHost) return { success: false, error: 'Not connected' }
+    if (!librespotHost) return { success: false, error: 'Not connected', state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
+    if (mainSpotifyIsPlaying) return { success: true, state: 'playing' }
     try {
       librespotHost.play()
-      return { success: true }
+      return { success: true, state: 'playing' }
     } catch (e) {
-      return { success: false, error: e.message }
+      return { success: false, error: e.message, state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
     }
   })
 
   ipcMain.handle('librespot-next', () => {
-    if (!librespotHost) return { success: false, error: 'Not connected' }
+    if (!librespotHost) return { success: false, error: 'Not connected', state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
     try {
       librespotHost.next()
-      return { success: true }
+      return { success: true, state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
     } catch (e) {
-      return { success: false, error: e.message }
+      return { success: false, error: e.message, state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
     }
   })
 
   ipcMain.handle('librespot-prev', async () => {
     const creds = getSpotifyCredentialsRaw()
-    if (!creds) return { success: false, error: 'Not authenticated' }
+    if (!creds) return { success: false, error: 'Not authenticated', state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
     try {
       await ensureValidToken()
       const res = await fetch('https://api.spotify.com/v1/me/player/previous', {
@@ -150,12 +159,12 @@ function registerLibrespotIpcs(ipcMain) {
         headers: { 'Authorization': 'Bearer ' + creds.accessToken }
       })
       if (res.status === 204 || res.status === 202) {
-        return { success: true }
+        return { success: true, state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
       }
       const err = await res.text()
-      return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+      return { success: false, error: `Spotify API error ${res.status}: ${err}`, state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
     } catch (err) {
-      return { success: false, error: err.message }
+      return { success: false, error: err.message, state: mainSpotifyIsPlaying ? 'playing' : 'paused' }
     }
   })
 

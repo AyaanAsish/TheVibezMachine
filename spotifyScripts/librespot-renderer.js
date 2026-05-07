@@ -111,6 +111,8 @@
   // -- PCM ingestion --
   let pcmCount = 0
   let lastPcmLog = 0
+  const LOCAL_SWITCH_GUARD_MS = 2000
+
   function onSpotifyPcm(buffer) {
     pcmCount++
     const now = performance.now()
@@ -123,6 +125,11 @@
     }
 
     if (!window.isSpotifyPlayback) {
+      const lastSwitch = window.lastLocalSwitchTime || 0
+      if (Date.now() - lastSwitch < LOCAL_SWITCH_GUARD_MS) {
+        console.log('[librespot-renderer] Ignoring delayed PCM after local switch')
+        return
+      }
       window.isSpotifyPlayback = true
       if (window.pauseLocalAudio) window.pauseLocalAudio()
       if (window.disconnectLocalAudio) window.disconnectLocalAudio()
@@ -160,6 +167,17 @@
     console.log('[librespot-renderer] Event:', state, event)
 
     if (state === 'playing') {
+      const lastSwitch = window.lastLocalSwitchTime || 0
+      if (Date.now() - lastSwitch < LOCAL_SWITCH_GUARD_MS && !window.isSpotifyPlayback) {
+        console.log('[librespot-renderer] Ignoring delayed playing event after local switch')
+        return
+      }
+
+      if (window.spotifyStatePending === 'pause') {
+        console.log('[librespot-renderer] Ignoring delayed playing event while pause is pending')
+        return
+      }
+
       window.spotifyIsPlaying = true
       if (!window.isSpotifyPlayback) {
         window.isSpotifyPlayback = true
@@ -185,6 +203,10 @@
       if (btn) btn.textContent = '⏸'
       window.startSpotifyAudio()
     } else if (state === 'paused') {
+      if (window.spotifyStatePending === 'play') {
+        console.log('[librespot-renderer] Ignoring delayed paused event while play is pending')
+        return
+      }
       window.spotifyIsPlaying = false
       const btn = document.getElementById('btn-play')
       if (btn) btn.textContent = '▶'

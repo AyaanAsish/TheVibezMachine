@@ -103,11 +103,13 @@ function createWindow(port) {
 }
 
 app.whenReady().then(async () => {
+  console.log('[main] App ready. Platform:', process.platform, 'Arch:', process.arch)
   try {
     const FIXED_PORTS = [3000, 3001, 3002]
     let port = null
 
     appServer = serveStatic(__dirname)
+    console.log('[main] Static server created for:', __dirname)
     for (const p of FIXED_PORTS) {
       try {
         await new Promise((resolve, reject) => {
@@ -124,7 +126,7 @@ app.whenReady().then(async () => {
     }
 
     if (!port) {
-      console.error('[main] All fixed ports are in use. Falling back to random port.')
+      console.error('[main] All fixed ports (3000-3002) are in use. Falling back to random port.')
       try {
         port = await new Promise((resolve, reject) => {
           appServer.listen(0, '127.0.0.1', (err) => {

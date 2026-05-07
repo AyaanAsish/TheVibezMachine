@@ -1,4 +1,10 @@
-const { startConnectDeviceWithCredentials, loginWithAccessToken, setLogLevel } = require('@lox-audioserver/node-librespot')
+let librespot = null
+try {
+  librespot = require('@lox-audioserver/node-librespot')
+} catch (err) {
+  console.error('[librespot-main] Failed to load native module:', err.message)
+}
+
 const { getSpotifyCredentialsRaw, ensureValidToken } = require('./spotifyAuth')
 const fs = require('fs')
 const path = require('path')
@@ -52,10 +58,15 @@ async function initLibrespot(win) {
 
   deviceId = loadOrCreateDeviceId()
 
-  try {
-    setLogLevel('info')
+  if (!librespot) {
+    console.log('[librespot-main] Native module unavailable, skipping Connect device init')
+    return
+  }
 
-    const loginResult = await loginWithAccessToken(freshCreds.accessToken, 'TheVibezMachine')
+  try {
+    librespot.setLogLevel('info')
+
+    const loginResult = await librespot.loginWithAccessToken(freshCreds.accessToken, 'TheVibezMachine')
     console.log('[librespot-main] Login success for user:', loginResult.username)
     librespotCredentials = loginResult.credentialsJson
 
@@ -63,7 +74,7 @@ async function initLibrespot(win) {
     fs.writeFileSync(credsFile, librespotCredentials)
 
     console.log('[librespot-main] Starting Connect device with deviceId:', deviceId)
-    librespotHost = await startConnectDeviceWithCredentials(
+    librespotHost = await librespot.startConnectDeviceWithCredentials(
       credsFile,
       'TheVibezMachine',
       deviceId,

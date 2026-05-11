@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron .",
-    "sign-vmp": "node scripts/sign-vmp.js"
+    "rebuild": "electron-rebuild"
   },
   "repository": {
     "type": "git",
@@ -21,6 +21,10 @@
   },
   "homepage": "https://github.com/AyaanAsish/TheVibezMachine#readme",
   "devDependencies": {
-    "electron": "https://github.com/castlabs/electron-releases#v41.1.1+wvcus"
+    "electron": "^34.0.0",
+    "electron-rebuild": "^3.2.9"
+  },
+  "dependencies": {
+    "@lox-audioserver/node-librespot": "file:./vendor/node-librespot"
   }
 }

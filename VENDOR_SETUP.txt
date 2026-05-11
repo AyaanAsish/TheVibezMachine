@@ -1,0 +1,45 @@
+VENDOR SETUP — node-librespot
+==============================
+
+TO BUILD THE WINDOWS PREBUILD
+-----------------------------
+1. On a Windows machine with these installed:
+   - Node.js 18+ (matching the Electron ABI)
+   - Rust stable toolchain (rustup.rs)
+   - Visual Studio Build Tools with "Desktop development with C++" workload
+   - Python 3.x
+
+3. From the repo root, run:
+     npm install
+     npm run rebuild
+   This compiles the native module for the current Electron version.
+
+4. Find the compiled binary:
+     vendor/node-librespot/dist/librespot_addon.node
+   OR
+     vendor/node-librespot/prebuilds/win32-x64-msvc/librespot_addon.node
+
+5. Copy that .node file into:
+     vendor/node-librespot/prebuilds/win32-x64-msvc/librespot_addon.node
+   If the win32-x64-msvc directory does not exist, create it.
+
+6. Commit and push the new .node file.
+   Everyone on Windows can now git pull && npm install and it just works.
+
+TO RUN THE APP (ANY PLATFORM)
+-----------------------------
+  npm install
+  npm start
+
+TO DEBUG MISSING PREBUILD ERRORS
+--------------------------------
+If you see this error on startup:
+  librespot_addon.node not found for win32-x64-msvc
+
+It means the Windows prebuild is missing. Follow the build steps above.
+
+If you want to force a local compile (for testing a new Electron version):
+  cd vendor/node-librespot
+  npm run build
+
+The compiled binary will appear in vendor/node-librespot/dist/.

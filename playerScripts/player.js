@@ -317,6 +317,13 @@ document.getElementById("applyPath").addEventListener("click", () => {
   }
 });
 
+// --- Settings: Clear Library ---
+document.getElementById("clearLibrary").addEventListener("click", async () => {
+  await window.electronAPI.dbClearLibrary();
+  document.getElementById("path").value = "";
+  loadLibrary();
+});
+
 // --- Settings: Spotify Connect ---
 document.getElementById("spotifyConnect").addEventListener("click", async () => {
   const clientId = document.getElementById("spotifyClientId").value.trim();

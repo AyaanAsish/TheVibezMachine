@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: () => ipcRenderer.invoke('open-folder'),
   scanFolder: (folderPath) => ipcRenderer.invoke('scan-folder', folderPath),
+  dbAddPath: (folderPath) => ipcRenderer.invoke('db-add-path', folderPath),
+  dbGetPaths: () => ipcRenderer.invoke('db-get-paths'),
+  dbClearLibrary: () => ipcRenderer.invoke('db-clear-library'),
   // Spotify OAuth
   spotifyAuth: (clientId, clientSecret) => ipcRenderer.invoke('spotify-auth', clientId, clientSecret),
   getSpotifyCredentials: () => ipcRenderer.invoke('get-spotify-credentials'),

@@ -8,10 +8,15 @@ let audioSource = null;
 // Convert a local filesystem path to a file:// URL so the HTML5 Audio element
 // can load it when the app is served from http://127.0.0.1:3000.
 function toFileUrl(p) {
-  if (!p) return '';
-  if (p.startsWith('file://') || p.startsWith('http://') || p.startsWith('https://')) return p;
-  const normalized = p.replace(/\\/g, '/');
-  return 'file:///' + normalized.replace(/^\/+/, '');
+  if (!p) return "";
+  if (
+    p.startsWith("file://") ||
+    p.startsWith("http://") ||
+    p.startsWith("https://")
+  )
+    return p;
+  const normalized = p.replace(/\\/g, "/");
+  return "file:///" + normalized.replace(/^\/+/, "");
 }
 
 /**
@@ -28,7 +33,8 @@ function ensureAudioConnection() {
 
   if (!audioSource) {
     try {
-      audioSource = window.visualizerAudioContext.createMediaElementSource(audio);
+      audioSource =
+        window.visualizerAudioContext.createMediaElementSource(audio);
       window.localAudioSource = audioSource;
     } catch (e) {
       console.error("[Player] Connection error:", e);
@@ -52,9 +58,10 @@ function ensureAudioConnection() {
   return true;
 }
 
-
 function getActiveQueue() {
-  return window.playerQueue && window.playerQueue.length > 0 ? window.playerQueue : queue;
+  return window.playerQueue && window.playerQueue.length > 0
+    ? window.playerQueue
+    : queue;
 }
 
 // --- Folder loading ---
@@ -97,7 +104,7 @@ function loadTrack(index) {
   }
 
   audio.pause();
-  audio.src = '';
+  audio.src = "";
   audio.load();
 
   if (activeQueue.length > 0) {
@@ -127,30 +134,36 @@ function loadTrack(index) {
 // --- Controls ---
 document.getElementById("btn-play").addEventListener("click", async () => {
   if (window.isSpotifyPlayback) {
-    if (window.spotifyStatePending) return
-    if (window.startSpotifyAudio) window.startSpotifyAudio()
+    if (window.spotifyStatePending) return;
+    if (window.startSpotifyAudio) window.startSpotifyAudio();
 
-    const wasPlaying = window.spotifyIsPlaying
-    const target = wasPlaying ? 'pause' : 'play'
-    window.spotifyStatePending = target
+    const wasPlaying = window.spotifyIsPlaying;
+    const target = wasPlaying ? "pause" : "play";
+    window.spotifyStatePending = target;
 
     // Optimistic UI update
-    window.spotifyIsPlaying = !wasPlaying
-    document.getElementById('btn-play').classList.toggle('paused', !window.spotifyIsPlaying);
+    window.spotifyIsPlaying = !wasPlaying;
+    document
+      .getElementById("btn-play")
+      .classList.toggle("paused", !window.spotifyIsPlaying);
 
-    const ipcFn = wasPlaying ? window.electronAPI.librespotPause : window.electronAPI.librespotPlay
-    const result = await ipcFn()
+    const ipcFn = wasPlaying
+      ? window.electronAPI.librespotPause
+      : window.electronAPI.librespotPlay;
+    const result = await ipcFn();
 
-    window.spotifyStatePending = null
+    window.spotifyStatePending = null;
 
     if (result && result.state) {
-      const actualPlaying = result.state === 'playing'
+      const actualPlaying = result.state === "playing";
       if (actualPlaying !== window.spotifyIsPlaying) {
-        window.spotifyIsPlaying = actualPlaying
-        document.getElementById('btn-play').classList.toggle('paused', !actualPlaying);
+        window.spotifyIsPlaying = actualPlaying;
+        document
+          .getElementById("btn-play")
+          .classList.toggle("paused", !actualPlaying);
       }
     }
-    return
+    return;
   }
 
   ensureAudioConnection();
@@ -185,7 +198,13 @@ document.getElementById("btn-next").addEventListener("click", () => {
     if (window.startSpotifyAudio) window.startSpotifyAudio();
     const q = window.spotifyQueue;
     const idx = window.spotifyCurrentIndex;
-    if (q && Array.isArray(q) && idx != null && idx < q.length - 1 && q[idx + 1]?.uri) {
+    if (
+      q &&
+      Array.isArray(q) &&
+      idx != null &&
+      idx < q.length - 1 &&
+      q[idx + 1]?.uri
+    ) {
       window.spotifyCurrentIndex = idx + 1;
       window.spotifyPlayTrack(q[idx + 1].uri);
     } else {
@@ -233,7 +252,7 @@ function renderPlaylist() {
   list.innerHTML = "";
   activeQueue.forEach((f, i) => {
     const li = document.createElement("li");
-    li.textContent = f.replace(/\\/g, '/').split('/').pop();
+    li.textContent = f.replace(/\\/g, "/").split("/").pop();
     li.addEventListener("click", () => loadTrack(i));
     list.appendChild(li);
   });
@@ -243,13 +262,22 @@ function renderPlaylist() {
 const progressBar = document.getElementById("progress-bar");
 const progressFill = document.getElementById("progress-fill");
 
+audio.addEventListener("play", () => {
+  if (window.isSpotifyPlayback) return;
+  document.getElementById("btn-play").classList.add("paused");
+});
+
+audio.addEventListener("pause", () => {
+  if (window.isSpotifyPlayback) return;
+  document.getElementById("btn-play").classList.remove("paused");
+});
+
 audio.addEventListener("timeupdate", () => {
   if (window.isSpotifyPlayback) return;
   const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
   progressFill.style.width = pct + "%";
   document.getElementById("current-time").textContent = fmt(audio.currentTime);
   document.getElementById("duration").textContent = fmt(audio.duration || 0);
-  document.getElementById("btn-play").classList.toggle("paused", audio.paused);
 });
 
 progressBar.addEventListener("click", (e) => {
@@ -288,16 +316,17 @@ function highlightActive() {
 
 function updateTrackName() {
   const activeQueue = getActiveQueue();
-  const rawName = activeQueue[current]?.replace(/\\/g, '/').split('/').pop() || "No track loaded";
-  const name = rawName.replace(/\.[^/.]+$/, '');
+  const rawName =
+    activeQueue[current]?.replace(/\\/g, "/").split("/").pop() ||
+    "No track loaded";
+  const name = rawName.replace(/\.[^/.]+$/, "");
   const ele = document.getElementById("track-name");
   ele.textContent = name;
 
   // Add/Remove scrolling animation
   if (ele.scrollWidth > ele.clientWidth) {
-    ele.classList.add('scroll-animation');
-  }
-  else ele.classList.remove('scroll-animation');
+    ele.classList.add("scroll-animation");
+  } else ele.classList.remove("scroll-animation");
 }
 
 function fmt(s) {
@@ -325,41 +354,54 @@ document.getElementById("clearLibrary").addEventListener("click", async () => {
 });
 
 // --- Settings: Spotify Connect ---
-document.getElementById("spotifyConnect").addEventListener("click", async () => {
-  const clientId = document.getElementById("spotifyClientId").value.trim();
-  const clientSecret = document.getElementById("spotifyClientSecret").value.trim();
+document
+  .getElementById("spotifyConnect")
+  .addEventListener("click", async () => {
+    const clientId = document.getElementById("spotifyClientId").value.trim();
+    const clientSecret = document
+      .getElementById("spotifyClientSecret")
+      .value.trim();
 
-  if (!clientId || !clientSecret) {
-    alert("Please enter both Spotify Client ID and Client Secret.");
-    return;
-  }
-
-  try {
-    const result = await window.electronAPI.spotifyAuth(clientId, clientSecret);
-    if (result.success) {
-      alert("Spotify connected!");
-      document.getElementById("spotifyClientSecret").value = "";
-    } else {
-      alert("Spotify connection failed: " + (result.error || "Unknown error"));
+    if (!clientId || !clientSecret) {
+      alert("Please enter both Spotify Client ID and Client Secret.");
+      return;
     }
-  } catch (e) {
-    alert("Spotify connection error: " + e.message);
-  }
-});
+
+    try {
+      const result = await window.electronAPI.spotifyAuth(
+        clientId,
+        clientSecret,
+      );
+      if (result.success) {
+        alert("Spotify connected!");
+        document.getElementById("spotifyClientSecret").value = "";
+      } else {
+        alert(
+          "Spotify connection failed: " + (result.error || "Unknown error"),
+        );
+      }
+    } catch (e) {
+      alert("Spotify connection error: " + e.message);
+    }
+  });
 
 // --- Settings: Spotify Disconnect ---
-document.getElementById("spotifyDisconnect").addEventListener("click", async () => {
-  try {
-    const result = await window.electronAPI.spotifyDisconnect();
-    if (result.success) {
-      alert("Spotify disconnected. Please reconnect with your Client ID and Secret to refresh permissions.");
-    } else {
-      alert("Failed to disconnect: " + (result.error || "Unknown error"));
+document
+  .getElementById("spotifyDisconnect")
+  .addEventListener("click", async () => {
+    try {
+      const result = await window.electronAPI.spotifyDisconnect();
+      if (result.success) {
+        alert(
+          "Spotify disconnected. Please reconnect with your Client ID and Secret to refresh permissions.",
+        );
+      } else {
+        alert("Failed to disconnect: " + (result.error || "Unknown error"));
+      }
+    } catch (e) {
+      alert("Disconnect error: " + e.message);
     }
-  } catch (e) {
-    alert("Disconnect error: " + e.message);
-  }
-});
+  });
 
 // --- Spotify position ticker ---
 let spotifyPositionInterval = null;
@@ -371,10 +413,10 @@ function startSpotifyPositionTicker() {
     window.spotifyPositionMs += 200;
     const duration = window.spotifyDurationMs || 1;
     const pct = (window.spotifyPositionMs / duration) * 100;
-    const fill = document.getElementById('progress-fill');
-    const curTime = document.getElementById('current-time');
-    const durEl = document.getElementById('duration');
-    if (fill) fill.style.width = pct + '%';
+    const fill = document.getElementById("progress-fill");
+    const curTime = document.getElementById("current-time");
+    const durEl = document.getElementById("duration");
+    if (fill) fill.style.width = pct + "%";
     if (curTime) curTime.textContent = fmt(window.spotifyPositionMs / 1000);
     if (durEl) durEl.textContent = fmt(duration / 1000);
   }, 200);
@@ -389,7 +431,7 @@ function stopSpotifyPositionTicker() {
 
 // --- Global Spotify play ---
 window.spotifyPlayTrack = async (uri) => {
-  console.log('[player.js] spotifyPlayTrack called with uri:', uri);
+  console.log("[player.js] spotifyPlayTrack called with uri:", uri);
 
   window.pauseLocalAudio();
   if (window.disconnectLocalAudio) window.disconnectLocalAudio();
@@ -404,17 +446,17 @@ window.spotifyPlayTrack = async (uri) => {
   if (window.startSpotifyAudio) {
     window.startSpotifyAudio();
   } else {
-    console.error('[player.js] window.startSpotifyAudio is MISSING');
+    console.error("[player.js] window.startSpotifyAudio is MISSING");
   }
 
   window.spotifyPositionMs = 0;
   startSpotifyPositionTicker();
 
   const deviceId = await window.electronAPI.getLibrespotDeviceId();
-  console.log('[player.js] Librespot device ID:', deviceId);
+  console.log("[player.js] Librespot device ID:", deviceId);
 
   if (!deviceId) {
-    console.error('[player.js] No librespot device ID available');
+    console.error("[player.js] No librespot device ID available");
     window.lastLocalSwitchTime = Date.now();
     window.isSpotifyPlayback = false;
     window.spotifyIsPlaying = false;
@@ -424,15 +466,15 @@ window.spotifyPlayTrack = async (uri) => {
   }
 
   const xfer = await window.electronAPI.spotifyTransferPlayback(deviceId, true);
-  console.log('[player.js] Transfer result:', xfer);
+  console.log("[player.js] Transfer result:", xfer);
 
-  await new Promise(r => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1500));
 
   const result = await window.electronAPI.spotifyPlayTrack(uri, deviceId);
-  console.log('[player.js] Play result:', result);
+  console.log("[player.js] Play result:", result);
 
   if (!result.success) {
-    console.error('[player.js] Failed to play Spotify track:', result.error);
+    console.error("[player.js] Failed to play Spotify track:", result.error);
     window.lastLocalSwitchTime = Date.now();
     window.isSpotifyPlayback = false;
     window.spotifyIsPlaying = false;

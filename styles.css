@@ -218,31 +218,6 @@ footer {
   width: 10em;
 }
 
-#btn-mute {
-  width: 16px;
-  height: 16px;
-  margin-right: 16px;
-  background-color: transparent;
-  background-image: url("assets/images/volume_on.png");
-  background-size: cover;
-  background-position: center;
-  border: none;
-}
-
-#btn-mute.muted {
-  background-image: url("assets/images/volume_off.png");
-}
-
-#btn-mute:hover {
-  background-image: url("assets/images/volume_on_hover.png");
-  transform: scale(1.03);
-}
-
-#btn-mute.muted:hover {
-  background-image: url("assets/images/volume_off_hover.png");
-  transform: scale(1.03);
-}
-
 #volume {
   -webkit-appearance: none;
   appearance: none;
@@ -273,16 +248,68 @@ footer {
 }
 
 .controlBtn {
-  color: #e2c044;
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 18px;
-  font-family: -apple-system, "Segoe UI Emoji", sans-serif;
+  width: 16px;
+  height: 16px;
+  background-color: transparent;
+  background-size: cover;
+  background-position: center;
 }
 
-.controlBtn:hover {
-  color: #d4b13e;
+/* Buttons */
+#btn-prev {
+  background-image: url("assets/images/prev.png");
+}
+
+#btn-prev:hover {
+  background-image: url("assets/images/prev_hover.png");
+  transform: scale(1.03);
+}
+
+#btn-next {
+  background-image: url("assets/images/next.png");
+}
+
+#btn-next:hover {
+  background-image: url("assets/images/next_hover.png");
+  transform: scale(1.03);
+}
+
+/* Play */
+#btn-play {
+  background-image: url("assets/images/play.png");
+}
+
+#btn-play.paused {
+  background-image: url("assets/images/pause.png");
+}
+
+#btn-play:hover {
+  background-image: url("assets/images/play_hover.png");
+  transform: scale(1.03);
+}
+
+#btn-play.paused:hover {
+  background-image: url("assets/images/pause_hover.png");
+  transform: scale(1.03);
+}
+
+/* Mute */
+#btn-mute {
+  margin-right: 16px;
+  background-image: url("assets/images/volume_on.png");
+}
+
+#btn-mute.muted {
+  background-image: url("assets/images/volume_off.png");
+}
+
+#btn-mute:hover {
+  background-image: url("assets/images/volume_on_hover.png");
+  transform: scale(1.03);
+}
+
+#btn-mute.muted:hover {
+  background-image: url("assets/images/volume_off_hover.png");
   transform: scale(1.03);
 }
 
@@ -639,8 +666,27 @@ footer {
   align-items: center;
   min-height: 100%;
   width: calc(100% - 138px);
-  /* Accounts for blade width */
   box-sizing: border-box;
+  overflow-y: auto;
+}
+
+#settings .items::-webkit-scrollbar {
+  width: 10px;
+}
+
+#settings .items::-webkit-scrollbar-track {
+  background: #2a2a2a;
+  border-radius: 5px;
+}
+
+#settings .items::-webkit-scrollbar-thumb {
+  background: #e2c044;
+  border-radius: 5px;
+  border: 2px solid #2a2a2a;
+}
+
+#settings .items::-webkit-scrollbar-thumb:hover {
+  background: #d4b13e;
 }
 
 #libPath {
@@ -710,6 +756,15 @@ footer {
 
 #applyPath:hover {
   background: #5a467d;
+}
+
+#clearLibrary {
+  background: #8b2020;
+  color: white;
+}
+
+#clearLibrary:hover {
+  background: #a52a2a;
 }
 
 .visualizer-layer {

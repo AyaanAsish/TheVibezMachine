@@ -136,7 +136,7 @@ document.getElementById("btn-play").addEventListener("click", async () => {
 
     // Optimistic UI update
     window.spotifyIsPlaying = !wasPlaying
-    document.getElementById('btn-play').textContent = wasPlaying ? '▶' : '⏸'
+    document.getElementById('btn-play').classList.toggle('paused', !window.spotifyIsPlaying);
 
     const ipcFn = wasPlaying ? window.electronAPI.librespotPause : window.electronAPI.librespotPlay
     const result = await ipcFn()
@@ -147,7 +147,7 @@ document.getElementById("btn-play").addEventListener("click", async () => {
       const actualPlaying = result.state === 'playing'
       if (actualPlaying !== window.spotifyIsPlaying) {
         window.spotifyIsPlaying = actualPlaying
-        document.getElementById('btn-play').textContent = actualPlaying ? '⏸' : '▶'
+        document.getElementById('btn-play').classList.toggle('paused', !actualPlaying);
       }
     }
     return
@@ -249,7 +249,7 @@ audio.addEventListener("timeupdate", () => {
   progressFill.style.width = pct + "%";
   document.getElementById("current-time").textContent = fmt(audio.currentTime);
   document.getElementById("duration").textContent = fmt(audio.duration || 0);
-  document.getElementById("btn-play").textContent = audio.paused ? "▶" : "⏸";
+  document.getElementById("btn-play").classList.toggle("paused", audio.paused);
 });
 
 progressBar.addEventListener("click", (e) => {
@@ -315,6 +315,13 @@ document.getElementById("applyPath").addEventListener("click", () => {
   if (pathInput) {
     window.setLibraryPath(pathInput);
   }
+});
+
+// --- Settings: Clear Library ---
+document.getElementById("clearLibrary").addEventListener("click", async () => {
+  await window.electronAPI.dbClearLibrary();
+  document.getElementById("path").value = "";
+  loadLibrary();
 });
 
 // --- Settings: Spotify Connect ---

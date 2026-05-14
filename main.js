@@ -5,6 +5,7 @@ const http = require('http')
 const url = require('url')
 const { registerSpotifyIpcs, onAuthSuccess } = require('./spotifyScripts/spotifyAuth')
 const { registerLibrespotIpcs, initLibrespot, stopLibrespot } = require('./spotifyScripts/librespot-main')
+const libraryDb = require('./db')
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
@@ -156,6 +157,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  libraryDb.close()
   stopLibrespot()
   if (appServer) appServer.close()
   app.quit()
@@ -202,6 +204,20 @@ ipcMain.handle('scan-folder', async (_event, folderPath) => {
     console.error('Error scanning folder:', err)
     return null
   }
+})
+
+ipcMain.handle('db-add-path', (_event, folderPath) => {
+  libraryDb.addPath(folderPath)
+  return { success: true }
+})
+
+ipcMain.handle('db-get-paths', () => {
+  return libraryDb.getAllPaths()
+})
+
+ipcMain.handle('db-clear-library', () => {
+  libraryDb.clearAll()
+  return { success: true }
 })
 
 registerSpotifyIpcs(ipcMain)

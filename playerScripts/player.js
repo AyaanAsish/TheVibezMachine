@@ -5,6 +5,25 @@ let queue = [];
 let current = 0;
 let audioSource = null;
 
+function updatePlayerCover(url) {
+  const img = document.getElementById('player-cover');
+  if (img) img.src = url || '';
+}
+window.updatePlayerCover = updatePlayerCover;
+
+// Click-to-toggle player popup
+const footerEl = document.querySelector('footer');
+const triggerEl = document.getElementById('footer-trigger');
+triggerEl.addEventListener('click', (e) => {
+  e.stopPropagation();
+  footerEl.classList.toggle('player-visible');
+});
+document.addEventListener('click', (e) => {
+  if (!footerEl.contains(e.target) && !triggerEl.contains(e.target)) {
+    footerEl.classList.remove('player-visible');
+  }
+});
+
 // Convert a local filesystem path to a file:// URL so the HTML5 Audio element
 // can load it when the app is served from http://127.0.0.1:3000.
 function toFileUrl(p) {
@@ -127,6 +146,7 @@ function loadTrack(index) {
       .catch((err) => console.error("Playback error:", err));
 
     updateTrackName();
+    updatePlayerCover(window.currentPlaylistCover || '');
     highlightActive();
   }
 }

@@ -242,6 +242,8 @@
     if (!tracklistContainer || !albumInfoContainer) return;
 
     showTracklist();
+    window.currentPlaylistCover = image || '';
+    if (window.updatePlayerCover) window.updatePlayerCover(image || '');
 
     tracklistContainer.innerHTML = '';
     albumInfoContainer.innerHTML = '';
@@ -363,6 +365,8 @@
       el.appendChild(info);
       el.addEventListener('click', () => {
         if (item.type === 'Track') {
+          window.currentPlaylistCover = item.image || '';
+          if (window.updatePlayerCover) window.updatePlayerCover(item.image || '');
           window.spotifyQueue = [item];
           window.spotifyCurrentIndex = 0;
           window.spotifyPlayTrack(item.uri);

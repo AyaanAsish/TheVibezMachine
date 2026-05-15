@@ -112,21 +112,23 @@
     <!-- Player -->
     <footer>
         <div id="player">
-
-            <!-- Track -->
+            <div id="player-top">
+                <img id="player-cover" src="" alt="Album cover" />
+                <div id="volume-container">
+                    <div class="sliderBar">
+                        <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+                    </div>
+                    <div class="controlBtn" id="btn-mute"></div>
+                </div>
+            </div>
             <div id="track-info">
                 <span id="track-name">No track loaded</span>
             </div>
-
-            <!-- Progress Bar -->
             <div id="progress-bar">
                 <div id="progress-fill"></div>
             </div>
-
-            <!-- Controls -->
             <div id="controls">
                 <div class="controlBtn" id="btn-prev"></div>
-                <!-- Duration -->
                 <div id="time-row">
                     <span id="current-time">0:00</span>
                     <span>/</span>
@@ -135,16 +137,11 @@
                 <div class="controlBtn" id="btn-play"></div>
                 <div class="controlBtn" id="btn-next"></div>
             </div>
-
-            <!-- Volume -->
-            <div id="volume-container">
-                <div class="controlBtn" id="btn-mute"></div>
-                <div class="sliderBar">
-                    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
-                </div>
-            </div>
         </div>
     </footer>
+    <div id="footer-trigger">
+        <span id="trigger-label">Now Playing</span>
+    </div>
 
     <!-- Scripts -->
     <script src="tabScripts/ui.js"></script>

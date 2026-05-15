@@ -5,7 +5,7 @@ const http = require('http')
 const url = require('url')
 const { registerSpotifyIpcs, onAuthSuccess } = require('./spotifyScripts/spotifyAuth')
 const { registerLibrespotIpcs, initLibrespot, stopLibrespot } = require('./spotifyScripts/librespot-main')
-const libraryDb = require('./db')
+const libraryDb = require('./DB/db')
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 

@@ -86,6 +86,9 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
 // LOAD PLAYLIST
 function loadPlaylist(name, audioFiles, coverImage) {
   currentPlaylistData = { name, audioFiles, coverImage }
+  window.currentPlaylistCover = coverImage
+    ? 'file:///' + coverImage.replace(/\\/g, '/').replace(/^\/+/, '')
+    : '';
 
   const libraryGrid = document.querySelector('#library .library-grid')
   const tracklistContainer = document.querySelector('#library .library-tracklist')

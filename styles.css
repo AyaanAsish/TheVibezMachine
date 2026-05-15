@@ -485,6 +485,7 @@ footer {
 }
 
 .tracklist-item {
+  overflow-wrap: anywhere;
   display: flex;
   align-items: center;
   padding: 10px 15px;
@@ -766,6 +767,18 @@ footer {
 #clearLibrary:hover {
   background: #a52a2a;
 }
+
+/* Visualizer */
+#content #visualizer {
+  position: absolute !important;
+  padding: 0;
+}
+
+#visualizer .items {
+  left: 54px;
+  width: calc(100% - 180px);
+}
+
 
 .visualizer-layer {
   position: absolute;

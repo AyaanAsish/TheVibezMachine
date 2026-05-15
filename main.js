@@ -6,6 +6,7 @@ const url = require('url')
 const { registerSpotifyIpcs, onAuthSuccess } = require('./spotifyScripts/spotifyAuth')
 const { registerLibrespotIpcs, initLibrespot, stopLibrespot } = require('./spotifyScripts/librespot-main')
 const libraryDb = require('./db')
+process.env.LOX_LIBRESPOT_ADDON_PATH = path.join(__dirname, 'node_modules/@lox-audioserver/node-librespot/prebuilds/win32-x64/librespot_addon.node');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 

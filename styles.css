@@ -1106,11 +1106,11 @@ footer {
 
 #spotifyAuth textarea:focus {
   outline: none;
-  border-color: #1db954;
+  border-color: white;
 }
 
 #spotifyAuth button {
-  background: #1db954;
+  background: #94c798;
   color: white;
   border: solid black 4px;
   font-family: "Oswald", sans-serif;
@@ -1124,7 +1124,7 @@ footer {
 }
 
 #spotifyAuth button:hover {
-  background: #1ed760;
+  background: #87b08b;
   transform: scale(1.03);
 }
 

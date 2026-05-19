@@ -168,8 +168,19 @@ function playTrack(index) {
 
 // Save path to DB and reload library
 window.setLibraryPath = async (path) => {
+  const result = await window.electronAPI.scanFolder(path)
+  if (!result) {
+    window.showToast('Path not found — check the folder location', 'error')
+    return
+  }
   await window.electronAPI.dbAddPath(path)
-  loadLibrary()
+  await loadLibrary()
+  const hasAudio = result.audioFiles.length > 0 || result.folders.length > 0
+  if (hasAudio) {
+    window.showToast('Library path added', 'success')
+  } else {
+    window.showToast('Path saved — no audio files found in this folder', 'error')
+  }
 }
 
 // Auto-load library from DB on startup

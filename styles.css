@@ -1242,3 +1242,47 @@ footer.player-visible {
 #spotifyAuth button:active {
   transform: scale(0.98);
 }
+
+/* Toast notification */
+#toast {
+  position: fixed;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-family: oswald, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+  z-index: 99999;
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  max-width: 420px;
+  word-wrap: break-word;
+}
+
+#toast.toast-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+#toast.toast-hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+}
+
+#toast.toast-success {
+  background: rgba(26, 26, 26, 0.92);
+  color: #e2c044;
+  border: 1px solid rgba(226, 192, 68, 0.35);
+}
+
+#toast.toast-error {
+  background: rgba(26, 26, 26, 0.92);
+  color: #e2c044;
+  border: 1px solid rgba(226, 192, 68, 0.35);
+}

@@ -408,9 +408,11 @@ function fmt(s) {
 // --- Settings: Apply Path ---
 document.getElementById("applyPath").addEventListener("click", () => {
   const pathValue = pathInput.value.trim();
-  if (pathValue) {
-    window.setLibraryPath(pathValue);
+  if (!pathValue) {
+    showToast("Enter a folder path first", "error");
+    return;
   }
+  window.setLibraryPath(pathValue);
 });
 
 // --- Settings: Clear Library ---
@@ -418,6 +420,7 @@ document.getElementById("clearLibrary").addEventListener("click", async () => {
   await window.electronAPI.dbClearLibrary();
   pathInput.value = "";
   loadLibrary();
+  showToast("Library cleared", "success");
 });
 
 // --- Settings: Spotify Connect ---
@@ -496,11 +499,10 @@ function stopSpotifyPositionTicker() {
 
 // --- Toast notification ---
 let toastTimer = null;
-function showToast(msg) {
+function showToast(msg, type = 'success') {
   if (!toastEl) return;
   toastEl.textContent = msg;
-  toastEl.classList.add('toast-visible');
-  toastEl.classList.remove('toast-hidden');
+  toastEl.className = 'toast-visible toast-' + type;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     toastEl.classList.remove('toast-visible');

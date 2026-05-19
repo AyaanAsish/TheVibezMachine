@@ -30,7 +30,6 @@ const initVisualizer = () => {
     const RawPresets =
       window.butterchurnPresets?.default || window.butterchurnPresets;
     presets = RawPresets.getPresets ? RawPresets.getPresets() : RawPresets;
-    console.log("[Visualizer] Preset count:", Object.keys(presets).length);
   } catch (e) {
     console.error("[Visualizer] Preset load error:", e);
   }
@@ -107,9 +106,6 @@ const initVisualizer = () => {
   window.addEventListener("resize", () => resizeCanvas(canvas, visualizer));
   window.myVisualizer = visualizer;
   window.visualizerAudioContext = audioContext;
-  window.safeConnect = (source) => {
-    if (source && visualizer) visualizer.connectAudio(source);
-  };
 };
 
 if (document.readyState === "complete") {

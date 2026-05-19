@@ -1,19 +1,20 @@
 // VARIABLES
 let currentPlaylistData = null
 
+// Cache container references once
+const libraryGrid = document.querySelector('#library .library-grid')
+const libraryTracklist = document.querySelector('#library .library-tracklist')
+const libraryAlbumInfo = document.querySelector('#library .library-album-info')
+
 // LOAD LIBRARY (reads all paths from DB, scans each)
 async function loadLibrary() {
-  const libraryGrid = document.querySelector('#library .library-grid')
-  const tracklistContainer = document.querySelector('#library .library-tracklist')
-  const albumInfo = document.querySelector('#library .library-album-info')
-
   if (!libraryGrid) return
 
-  tracklistContainer.classList.add('hidden')
-  albumInfo.classList.add('hidden')
+  libraryTracklist?.classList.add('hidden')
+  libraryAlbumInfo?.classList.add('hidden')
   libraryGrid.classList.remove('hidden')
   libraryGrid.classList.remove('hide-grid')
-  libraryGrid.innerHTML = ''
+  libraryGrid.replaceChildren()
 
   const paths = await window.electronAPI.dbGetPaths()
 
@@ -60,7 +61,7 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
 
   if (coverImage) {
     const img = document.createElement('img')
-    img.src = 'file:///' + coverImage.replace(/\\/g, '/').replace(/^\/+/, '')
+    img.src = window.toFileUrl(coverImage)
     img.alt = name
     coverImg.appendChild(img)
   } else {
@@ -69,8 +70,11 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
 
   const info = document.createElement('div')
   info.className = 'playlist-info'
-  const artistName = name.split(' - ')[0] || 'No Author'
-  info.innerHTML = `<span class="playlist-name">${name.split(' - ')[1] || name}</span><span class="playlist-artist">${artistName}</span>`
+  const parts = name.split(' - ')
+  const hasAuthor = parts.length > 1
+  const artistName = hasAuthor ? parts[0] : 'No Author'
+  const albumName = hasAuthor ? parts.slice(1).join(' - ') : name
+  info.innerHTML = `<span class="playlist-name">${albumName}</span><span class="playlist-artist">${artistName}</span>`
 
   card.addEventListener('click', function(e) {
     e.preventDefault()
@@ -87,21 +91,17 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
 function loadPlaylist(name, audioFiles, coverImage) {
   currentPlaylistData = { name, audioFiles, coverImage }
   window.currentPlaylistCover = coverImage
-    ? 'file:///' + coverImage.replace(/\\/g, '/').replace(/^\/+/, '')
+    ? window.toFileUrl(coverImage)
     : '';
 
-  const libraryGrid = document.querySelector('#library .library-grid')
-  const tracklistContainer = document.querySelector('#library .library-tracklist')
-  const albumInfo = document.querySelector('#library .library-album-info')
+  if (!libraryTracklist || !libraryAlbumInfo) return
 
-  if (!tracklistContainer || !albumInfo) return
-
-  libraryGrid.classList.add('hidden')
-  libraryGrid.classList.add('hide-grid')
-  tracklistContainer.classList.remove('hidden')
-  albumInfo.classList.remove('hidden')
-  tracklistContainer.replaceChildren()
-  albumInfo.replaceChildren()
+  libraryGrid?.classList.add('hidden')
+  libraryGrid?.classList.add('hide-grid')
+  libraryTracklist.classList.remove('hidden')
+  libraryAlbumInfo.classList.remove('hidden')
+  libraryTracklist.replaceChildren()
+  libraryAlbumInfo.replaceChildren()
 
   const backBtn = document.createElement('div')
   backBtn.className = 'library-back-btn'
@@ -109,7 +109,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
   backBtn.addEventListener('click', () => {
     loadLibrary()
   })
-  tracklistContainer.appendChild(backBtn)
+  libraryTracklist.appendChild(backBtn)
 
   audioFiles.forEach((file, index) => {
     const track = document.createElement('div')
@@ -119,7 +119,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
     track.addEventListener('click', () => {
       playTrack(index)
     })
-    tracklistContainer.appendChild(track)
+    libraryTracklist.appendChild(track)
   })
 
   const infoCard = document.createElement('div')
@@ -127,7 +127,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
 
   if (coverImage) {
     infoCard.innerHTML = `
-      <img src="file:///${coverImage.replace(/\\/g, '/').replace(/^\/+/, '')}" alt="${name}" class="album-cover-large">
+      <img src="${window.toFileUrl(coverImage)}" alt="${name}" class="album-cover-large">
       <div class="album-name">${name}</div>
       <div class="album-artist">${audioFiles.length} tracks</div>
       <button class="playlist-play-btn">Play</button>
@@ -141,7 +141,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
     `
   }
 
-  albumInfo.appendChild(infoCard)
+  libraryAlbumInfo.appendChild(infoCard)
 
   const playBtn = infoCard.querySelector('.playlist-play-btn')
   playBtn.addEventListener('click', (e) => {
@@ -155,14 +155,15 @@ function playTrack(index) {
   if (!currentPlaylistData) return
 
   window.playerQueue = currentPlaylistData.audioFiles.map(f => f.path)
-  window.currentTrackIndex = index
   window.loadPlayerTrack(index)
-  window.renderPlaylist()
 
-  const tracks = document.querySelectorAll('.tracklist-item')
-  tracks.forEach((t, i) => {
-    t.classList.toggle('active', i === index)
-  })
+  if (window.highlightTracklistItems) {
+    window.highlightTracklistItems('.tracklist-item', index)
+  } else {
+    document.querySelectorAll('.tracklist-item').forEach((t, i) => {
+      t.classList.toggle('active', i === index)
+    })
+  }
 }
 
 // Save path to DB and reload library

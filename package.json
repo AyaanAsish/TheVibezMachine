@@ -27,8 +27,7 @@
     "electron-rebuild": "^2.0.3"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.3",
     "@lox-audioserver/node-librespot": "file:vendor/node-librespot",
-    "sqlite3": "^6.0.1"
+    "better-sqlite3": "^12.0.0"
   }
 }

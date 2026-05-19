@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, screen, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const http = require('http')
@@ -6,6 +6,7 @@ const url = require('url')
 const { registerSpotifyIpcs, onAuthSuccess } = require('./spotifyScripts/spotifyAuth')
 const { registerLibrespotIpcs, initLibrespot, stopLibrespot } = require('./spotifyScripts/librespot-main')
 const libraryDb = require('./DB/db')
+const { AUDIO_EXTENSIONS } = require('./shared/constants')
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
@@ -93,10 +94,8 @@ function createWindow(port) {
   })
 
   if (port) {
-    console.log(`[main] Loading app from http://127.0.0.1:${port}`)
     win.loadURL(`http://127.0.0.1:${port}`)
   } else {
-    console.log('[main] Loading app from file://')
     win.loadFile('index.html')
   }
 
@@ -104,13 +103,11 @@ function createWindow(port) {
 }
 
 app.whenReady().then(async () => {
-  console.log('[main] App ready. Platform:', process.platform, 'Arch:', process.arch)
   try {
     const FIXED_PORTS = [3000, 3001, 3002]
     let port = null
 
     appServer = serveStatic(__dirname)
-    console.log('[main] Static server created for:', __dirname)
     for (const p of FIXED_PORTS) {
       try {
         await new Promise((resolve, reject) => {
@@ -122,7 +119,7 @@ app.whenReady().then(async () => {
         port = p
         break
       } catch (err) {
-        console.log(`[main] Port ${p} is in use, trying next...`)
+        // Port in use, try next
       }
     }
 
@@ -141,8 +138,6 @@ app.whenReady().then(async () => {
         return
       }
     }
-
-    console.log(`[main] Local server running on http://127.0.0.1:${port}`)
 
     createWindow(port)
 
@@ -172,10 +167,9 @@ ipcMain.handle('open-folder', async () => {
   return { folder: folderPath, files }
 })
 
-ipcMain.handle('scan-folder', async (_event, folderPath) => {
+ipcMain.handle('scan-folder', async (_event, folderPath, _userTriggered) => {
   try {
     const entries = fs.readdirSync(folderPath, { withFileTypes: true })
-    const audioExt = ['.mp3', '.wav', '.flac', '.ogg', '.m4a']
     const imageExt = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
 
     const folders = []
@@ -188,7 +182,7 @@ ipcMain.handle('scan-folder', async (_event, folderPath) => {
         folders.push({ name: entry.name, path: fullPath })
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase()
-        if (audioExt.includes(ext)) {
+        if (AUDIO_EXTENSIONS.includes(ext) && !entry.name.startsWith('._')) {
           audioFiles.push({ name: entry.name, path: fullPath })
         }
         const name = entry.name.toLowerCase()

@@ -20,6 +20,7 @@
   let currentHoverScale = 1;
   const HOVER_SCALE = 1.06;
   const LERP_FACTOR = 0.12;
+  let isFetchingSaved = false;
 
   const TILE_W = 160;
   const TILE_H = 210;
@@ -35,64 +36,50 @@
     }
   }
 
-  async function fetchSavedAlbums() {
-    if (!credentials) return;
+  async function fetchSavedItems(endpoint, mapper) {
+    if (!credentials || isFetchingSaved) return [];
+    isFetchingSaved = true;
     try {
-      const result = await window.electronAPI.spotifyApi('/me/albums?limit=50');
+      const result = await window.electronAPI.spotifyApi(endpoint);
       if (!result.success) {
         apiError = result.error;
-        savedAlbums = [];
         needsRedraw = true;
-        draw();
-        return;
+        return [];
       }
       apiError = null;
-      savedAlbums = (result.data.items || []).map(item => ({
-        name: item.album.name,
-        artist: item.album.artists.map(a => a.name).join(', '),
-        image: item.album.images[0]?.url,
-        uri: item.album.uri,
-        id: item.album.id,
-        type: 'Saved Album'
-      }));
-      preloadImages(savedAlbums);
+      const items = (result.data.items || []).map(mapper);
+      preloadImages(items);
+      return items;
     } catch (e) {
       apiError = e.message;
-      console.error('Failed to fetch saved albums:', e);
-      savedAlbums = [];
+      console.error('Failed to fetch saved items:', e);
+      return [];
+    } finally {
+      isFetchingSaved = false;
+      needsRedraw = true;
     }
-    needsRedraw = true;
-    draw();
+  }
+
+  async function fetchSavedAlbums() {
+    savedAlbums = await fetchSavedItems('/me/albums?limit=50', item => ({
+      name: item.album.name,
+      artist: item.album.artists.map(a => a.name).join(', '),
+      image: item.album.images[0]?.url,
+      uri: item.album.uri,
+      id: item.album.id,
+      type: 'Saved Album'
+    }));
   }
 
   async function fetchSavedPlaylists() {
-    if (!credentials) return;
-    try {
-      const result = await window.electronAPI.spotifyApi('/me/playlists?limit=50');
-      if (!result.success) {
-        apiError = result.error;
-        savedPlaylists = [];
-        needsRedraw = true;
-        draw();
-        return;
-      }
-      apiError = null;
-      savedPlaylists = (result.data.items || []).map(item => ({
-        name: item.name,
-        artist: item.owner?.display_name || '',
-        image: item.images[0]?.url,
-        uri: item.uri,
-        id: item.id,
-        type: 'Saved Playlist'
-      }));
-      preloadImages(savedPlaylists);
-    } catch (e) {
-      apiError = e.message;
-      console.error('Failed to fetch saved playlists:', e);
-      savedPlaylists = [];
-    }
-    needsRedraw = true;
-    draw();
+    savedPlaylists = await fetchSavedItems('/me/playlists?limit=50', item => ({
+      name: item.name,
+      artist: item.owner?.display_name || '',
+      image: item.images[0]?.url,
+      uri: item.uri,
+      id: item.id,
+      type: 'Saved Playlist'
+    }));
   }
 
   function showDropdown() {
@@ -140,7 +127,13 @@
         return;
       }
       apiError = null;
-      const tracks = result.data.items || [];
+      const tracks = (result.data.items || []).map(t => ({
+        name: t.name,
+        artists: t.artists || [],
+        uri: t.uri,
+        duration_ms: t.duration_ms,
+        albumImage: image
+      }));
       renderTracklist(tracks, name, artist, image);
     } catch (e) {
       console.error('[explore] Failed to load album tracks:', e);
@@ -154,7 +147,6 @@
       renderTracklist([], name, '', image, 'Cannot load playlist: missing credentials or ID');
       return;
     }
-    console.log('[explore] Loading playlist tracks for id:', playlistId);
     try {
       // Paginate through all tracks (max 50 per request)
       let allItems = [];
@@ -177,18 +169,15 @@
         }
 
         const items = result.data.items || [];
-        allItems = allItems.concat(items);
+        allItems.push(...items);
         total = result.data.total;
-        console.log('[explore] Fetched', items.length, 'items (offset', offset, 'of', total, ')');
 
         if (items.length === 0 || allItems.length >= total) break;
         offset += limit;
       }
 
       apiError = null;
-      console.log('[explore] Total items fetched:', allItems.length);
       if (allItems.length > 0) {
-        console.log('[explore] First item raw:', JSON.stringify(allItems[0], null, 2));
       }
 
       const tracks = allItems.map(item => {
@@ -198,11 +187,11 @@
           artists: track && track.artists ? track.artists : [],
           uri: track ? track.uri : '',
           duration_ms: track ? track.duration_ms : 0,
-          is_local: item.is_local || false
+          is_local: item.is_local || false,
+          albumImage: track && track.album && track.album.images ? track.album.images[0]?.url : null
         };
       }).filter(t => t.uri);
 
-      console.log('[explore] Playable tracks after filtering:', tracks.length);
       if (tracks.length === 0) {
         const hasLocal = allItems.some(i => i.is_local);
         const allNull = allItems.length > 0 && allItems.every(i => !(i.item || i.track));
@@ -230,7 +219,13 @@
         return;
       }
       apiError = null;
-      const tracks = result.data.tracks || [];
+      const tracks = (result.data.tracks || []).map(t => ({
+        name: t.name,
+        artists: t.artists || [],
+        uri: t.uri,
+        duration_ms: t.duration_ms,
+        albumImage: t.album?.images?.[0]?.url || image
+      }));
       renderTracklist(tracks, name, '', image);
     } catch (e) {
       console.error('[explore] Failed to load artist top tracks:', e);
@@ -308,6 +303,7 @@
       const trackArtists = track.artists ? track.artists.map(a => a.name).join(', ') : '';
       const duration = fmtMs(track.duration_ms || 0);
       const uri = track.uri || '';
+      const albumImg = track.albumImage;
 
       const item = document.createElement('div');
       item.className = 'tracklist-item';
@@ -315,11 +311,14 @@
       item.addEventListener('click', () => {
         if (uri) {
           window.spotifyCurrentIndex = index;
+          // Update player popup to this track's album art (sidebar keeps playlist cover)
+          const cover = albumImg || image || '';
+          window.currentPlaylistCover = cover;
+          if (window.updatePlayerCover) window.updatePlayerCover(cover);
           window.spotifyPlayTrack(uri);
-          // Highlight active
-          document.querySelectorAll('#explore .library-tracklist .tracklist-item').forEach((el, i) => {
-            el.classList.toggle('active', i === index);
-          });
+          if (window.highlightTracklistItems) {
+            window.highlightTracklistItems('#explore .library-tracklist .tracklist-item', index)
+          }
         }
       });
       tracklistContainer.appendChild(item);
@@ -327,10 +326,7 @@
   }
 
   function fmtMs(ms) {
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60);
-    const sec = (s % 60).toString().padStart(2, '0');
-    return `${m}:${sec}`;
+    return window.fmt ? window.fmt(Math.floor(ms / 1000)) : '0:00'
   }
 
   function renderDropdown(results) {
@@ -396,7 +392,6 @@
         apiError = result.error;
         hideDropdown();
         needsRedraw = true;
-        draw();
         return;
       }
       apiError = null;
@@ -428,7 +423,6 @@
       console.error('Search failed:', e);
       hideDropdown();
       needsRedraw = true;
-      draw();
     }
   }
 
@@ -439,7 +433,6 @@
       img.onload = () => {
         imageCache.set(item.image, img);
         needsRedraw = true;
-        draw();
       };
       img.onerror = () => {
         imageCache.set(item.image, null);
@@ -468,13 +461,9 @@
     canvas.height = Math.max(1, Math.floor(cssHeight * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     needsRedraw = true;
-    draw();
   }
 
-  function drawText(text, x, y, maxWidth, fontSize, color) {
-    ctx.font = `${fontSize}px oswald, sans-serif`;
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
+  function wrapText(text, maxWidth) {
     const words = String(text || '').split(' ');
     let line = '';
     const lines = [];
@@ -488,6 +477,14 @@
       }
     }
     lines.push(line.trim());
+    return lines;
+  }
+
+  function drawText(text, x, y, maxWidth, fontSize, color) {
+    ctx.font = `${fontSize}px oswald, sans-serif`;
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    const lines = wrapText(text, maxWidth);
     lines.slice(0, 2).forEach((l, idx) => {
       ctx.fillText(l, x, y + idx * (fontSize + 2));
     });
@@ -582,20 +579,7 @@
       ctx.fillText('Error:', cssW / 2, cssH / 2 - 20);
       ctx.fillStyle = '#ffffff';
       ctx.font = '14px source_serif_4, serif';
-      const maxLine = cssW - 40;
-      const words = String(apiError).split(' ');
-      let line = '';
-      const lines = [];
-      for (let i = 0; i < words.length; i++) {
-        const testLine = line + words[i] + ' ';
-        if (ctx.measureText(testLine).width > maxLine && i > 0) {
-          lines.push(line.trim());
-          line = words[i] + ' ';
-        } else {
-          line = testLine;
-        }
-      }
-      lines.push(line.trim());
+      const lines = wrapText(apiError, cssW - 40);
       lines.forEach((l, idx) => {
         ctx.fillText(l, cssW / 2, cssH / 2 + 10 + idx * 18);
       });
@@ -647,7 +631,6 @@
       const { mx, my } = getMousePos(e);
       const item = findHitRegion(mx, my);
       if (!item) return;
-      console.log('[explore] Clicked item:', item.type, item.name, item.id);
       if (item.type === 'Saved Album') {
         loadAlbumTracks(item.id, item.name, item.artist, item.image);
       } else if (item.type === 'Saved Playlist') {
@@ -727,33 +710,12 @@
     await getCredentials();
     await Promise.all([fetchSavedAlbums(), fetchSavedPlaylists()]);
     resize();
-    setTimeout(() => { resize(); }, 100);
-    setTimeout(() => { resize(); }, 500);
   })();
 
   window.updateSpotifyTracklistHighlight = () => {
     const idx = window.spotifyCurrentIndex || 0;
-    const exploreItems = document.querySelectorAll('#explore .library-tracklist .tracklist-item');
-    if (exploreItems.length > 0) {
-      exploreItems.forEach((el, i) => el.classList.toggle('active', i === idx));
-    }
-  };
-
-  // Diagnostic helper: run from DevTools console to see raw API response
-  window.diagnosePlaylist = async (playlistId) => {
-    if (!credentials) { console.warn('Not authenticated'); return; }
-    const endpoints = [
-      '/playlists/' + playlistId + '/items?limit=50&additional_types=track',
-      '/playlists/' + playlistId + '/tracks?limit=50',
-      '/playlists/' + playlistId
-    ];
-    for (const ep of endpoints) {
-      console.log('=== Testing:', ep, '===');
-      const result = await window.electronAPI.spotifyApi(ep);
-      console.log('Success:', result.success, 'Error:', result.error);
-      if (result.success) {
-        console.log('Raw data:', JSON.stringify(result.data, null, 2).substring(0, 2000));
-      }
+    if (window.highlightTracklistItems) {
+      window.highlightTracklistItems('#explore .library-tracklist .tracklist-item', idx)
     }
   };
 })();

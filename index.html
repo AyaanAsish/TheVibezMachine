@@ -88,7 +88,7 @@
             <!-- Settings -->
             <div class="tab" id="settings">
                 <div class="items">
-                    <div id="libPath">
+                    <div id="libPath" class="settings-section">
                         <label>Change library path</label>
                         <textarea id="path"></textarea>
                         <button id="applyPath">Apply Path</button>
@@ -96,7 +96,7 @@
                         <button id="clearLibrary">Clear Library</button>
                         <label>Please Format Media: <b class="keyword">"Author - Title"</b></label>
                     </div>
-                    <div id="spotifyAuth">
+                    <div id="spotifyAuth" class="settings-section">
                       <label>Spotify Client ID</label>
                       <textarea id="spotifyClientId"></textarea>
                       <label>Spotify Client Secret</label>
@@ -113,7 +113,7 @@
     <footer>
         <div id="player">
             <div id="player-top">
-                <img id="player-cover" src="" alt="Album cover" />
+                <div id="player-cover"><span class="no-cover">🎵</span></div>
                 <div id="volume-container">
                     <div class="sliderBar">
                         <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
@@ -142,8 +142,11 @@
     <div id="footer-trigger">
         <span id="trigger-label">Now Playing</span>
     </div>
+    <div id="toast" class="toast-hidden"></div>
 
     <!-- Scripts -->
+    <script src="shared/constants.js"></script>
+    <script src="tabScripts/sharedUi.js"></script>
     <script src="tabScripts/ui.js"></script>
     <script src="tabScripts/library.js"></script>
     <script src="tabScripts/explore.js"></script>

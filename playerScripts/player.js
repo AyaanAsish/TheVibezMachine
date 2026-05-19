@@ -433,7 +433,7 @@ document
       .value.trim();
 
     if (!clientId || !clientSecret) {
-      alert("Please enter both Spotify Client ID and Client Secret.");
+      showToast("Enter both Client ID and Secret", "error");
       return;
     }
 
@@ -443,15 +443,13 @@ document
         clientSecret,
       );
       if (result.success) {
-        alert("Spotify connected!");
+        showToast("Spotify connected", "success");
         document.getElementById("spotifyClientSecret").value = "";
       } else {
-        alert(
-          "Spotify connection failed: " + (result.error || "Unknown error"),
-        );
+        showToast("Connection failed — " + (result.error || "Unknown error"), "error");
       }
     } catch (e) {
-      alert("Spotify connection error: " + e.message);
+      showToast("Connection error — " + e.message, "error");
     }
   });
 
@@ -462,14 +460,12 @@ document
     try {
       const result = await window.electronAPI.spotifyDisconnect();
       if (result.success) {
-        alert(
-          "Spotify disconnected. Please reconnect with your Client ID and Secret to refresh permissions.",
-        );
+        showToast("Spotify disconnected", "success");
       } else {
-        alert("Failed to disconnect: " + (result.error || "Unknown error"));
+        showToast("Failed to disconnect — " + (result.error || "Unknown error"), "error");
       }
     } catch (e) {
-      alert("Disconnect error: " + e.message);
+      showToast("Disconnect error — " + e.message, "error");
     }
   });
 

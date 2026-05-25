@@ -1,6 +1,12 @@
 // VARIABLES
 let currentPlaylistData = null
 
+function escapeHtml(str) {
+  const d = document.createElement('div')
+  d.textContent = str
+  return d.innerHTML
+}
+
 // Cache container references once
 const libraryGrid = document.querySelector('#library .library-grid')
 const libraryTracklist = document.querySelector('#library .library-tracklist')
@@ -74,7 +80,7 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
   const hasAuthor = parts.length > 1
   const artistName = hasAuthor ? parts[0] : 'No Author'
   const albumName = hasAuthor ? parts.slice(1).join(' - ') : name
-  info.innerHTML = `<span class="playlist-name">${albumName}</span><span class="playlist-artist">${artistName}</span>`
+  info.innerHTML = `<span class="playlist-name">${escapeHtml(albumName)}</span><span class="playlist-artist">${escapeHtml(artistName)}</span>`
 
   card.addEventListener('click', function(e) {
     e.preventDefault()
@@ -115,7 +121,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
     const track = document.createElement('div')
     track.className = 'tracklist-item'
     const trackName = file.name.replace(/\.[^/.]+$/, '')
-    track.innerHTML = `<span class="track-number">${index + 1}</span><span class="track-title">${trackName}</span>`
+    track.innerHTML = `<span class="track-number">${index + 1}</span><span class="track-title">${escapeHtml(trackName)}</span>`
     track.addEventListener('click', () => {
       playTrack(index)
     })
@@ -127,15 +133,15 @@ function loadPlaylist(name, audioFiles, coverImage) {
 
   if (coverImage) {
     infoCard.innerHTML = `
-      <img src="${window.toFileUrl(coverImage)}" alt="${name}" class="album-cover-large">
-      <div class="album-name">${name}</div>
+      <img src="${window.toFileUrl(coverImage)}" alt="${escapeHtml(name)}" class="album-cover-large">
+      <div class="album-name">${escapeHtml(name)}</div>
       <div class="album-artist">${audioFiles.length} tracks</div>
       <button class="playlist-play-btn">Play</button>
     `
   } else {
     infoCard.innerHTML = `
       <div class="album-cover-large no-cover">🎵</div>
-      <div class="album-name">${name}</div>
+      <div class="album-name">${escapeHtml(name)}</div>
       <div class="album-artist">${audioFiles.length} tracks</div>
       <button class="playlist-play-btn">Play</button>
     `
@@ -154,6 +160,13 @@ function loadPlaylist(name, audioFiles, coverImage) {
 function playTrack(index) {
   if (!currentPlaylistData) return
 
+  // Restore the local cover — the Explore tab may have overwritten
+  // currentPlaylistCover while the user was browsing.
+  window.currentPlaylistCover = currentPlaylistData.coverImage
+    ? window.toFileUrl(currentPlaylistData.coverImage)
+    : '';
+  if (window.updatePlayerCover) window.updatePlayerCover(window.currentPlaylistCover);
+
   window.playerQueue = currentPlaylistData.audioFiles.map(f => f.path)
   window.loadPlayerTrack(index)
 
@@ -170,7 +183,7 @@ function playTrack(index) {
 window.setLibraryPath = async (path) => {
   const result = await window.electronAPI.scanFolder(path)
   if (!result) {
-    window.showToast('Path not found — check the folder location', 'error')
+    window.showToast('Folder not found — check the path is correct', 'error')
     return
   }
   await window.electronAPI.dbAddPath(path)
@@ -179,7 +192,7 @@ window.setLibraryPath = async (path) => {
   if (hasAudio) {
     window.showToast('Library path added', 'success')
   } else {
-    window.showToast('Path saved — no audio files found in this folder', 'error')
+    window.showToast('No music files found in this folder', 'error')
   }
 }
 

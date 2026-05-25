@@ -15,7 +15,12 @@ const btnMute = document.getElementById('btn-mute');
 const trackNameEl = document.getElementById('track-name');
 const pathInput = document.getElementById('path');
 
+let lastCoverUrl = null;
+window.nowPlayingCover = null;
 function updatePlayerCover(url) {
+  if (url === lastCoverUrl) return;
+  lastCoverUrl = url;
+  window.nowPlayingCover = url;
   const container = document.getElementById('player-cover');
   if (!container) return;
   if (url) {
@@ -38,6 +43,8 @@ const PlaybackState = {
   previousVolume: 1,
   isDeviceActive: false,
   lastUserActionTime: 0,
+  lastTrackUri: null,
+  coverLoadedFromApi: false,
 
   setMode(mode) {
     if (this.mode === mode) return;
@@ -60,6 +67,7 @@ const PlaybackState = {
     }
 
     window.isSpotifyPlayback = mode === 'spotify';
+    updateTriggerVisibility();
   },
 
   setPlaying(playing) {
@@ -78,7 +86,7 @@ const PlaybackState = {
         trackNameEl.classList.remove('scroll-animation');
       }
     }
-    updatePlayerCover(cover !== undefined ? cover : window.currentPlaylistCover || '');
+    updatePlayerCover(cover !== undefined ? cover : window.nowPlayingCover || '');
   },
 
   setProgress(positionMs, durationMs) {
@@ -99,7 +107,10 @@ const PlaybackState = {
     this.pendingPromise = null;
     this.advanceLock = false;
     this.isDeviceActive = false;
+    this.lastTrackUri = null;
+    this.coverLoadedFromApi = false;
     stopSpotifyPositionTicker();
+    updateTriggerVisibility();
   },
 
   async advance(delta) {
@@ -111,19 +122,24 @@ const PlaybackState = {
         const idx = window.spotifyCurrentIndex;
         const newIdx = (idx != null) ? idx + delta : null;
         if (q && Array.isArray(q) && newIdx != null && newIdx >= 0 && newIdx < q.length && q[newIdx]?.uri) {
-          window.spotifyCurrentIndex = newIdx;
-          // Update cover to the new track's album art
           const newTrack = q[newIdx];
           if (newTrack.albumImage) {
-            window.currentPlaylistCover = newTrack.albumImage;
             if (window.updatePlayerCover) window.updatePlayerCover(newTrack.albumImage);
           }
           await window.spotifyPlayTrack(q[newIdx].uri);
-        } else if (delta > 0) {
-          await window.electronAPI.librespotNext();
-        } else {
-          await window.electronAPI.librespotPrev();
+          window.spotifyCurrentIndex = newIdx;
+        } else if (q && q.length > 0) {
+          // Queue exists but we're at the end (or beginning for prev).
+          // Only call next/prev if we have an in-app queue — for remote
+          // playback (empty/unknown queue), let Spotify manage its own queue.
+          if (delta > 0) {
+            await window.electronAPI.librespotNext();
+          } else {
+            await window.electronAPI.librespotPrev();
+          }
         }
+        // If no queue at all (pure remote playback), do nothing —
+        // Spotify will advance on its own via the Connect session.
       } else {
         const activeQueue = getActiveQueue();
         const newIdx = current + delta;
@@ -131,6 +147,8 @@ const PlaybackState = {
           loadTrack(newIdx);
         }
       }
+    } catch (e) {
+      console.error('[Player] advance error:', e);
     } finally {
       this.advanceLock = false;
     }
@@ -156,6 +174,12 @@ window.PlaybackState = PlaybackState;
 // Click-to-toggle player popup
 const footerEl = document.querySelector('footer');
 const triggerEl = document.getElementById('footer-trigger');
+
+function updateTriggerVisibility() {
+  const show = PlaybackState.mode !== null;
+  triggerEl.classList.toggle('visible', show);
+}
+
 triggerEl.addEventListener('click', (e) => {
   e.stopPropagation();
   footerEl.classList.toggle('player-visible');
@@ -220,23 +244,30 @@ function getActiveQueue() {
 }
 
 // --- Folder loading ---
+let folderDialogOpen = false;
 document.getElementById("btn-open").addEventListener("click", async () => {
-  const result = await window.electronAPI.openFolder();
-  if (!result || !result.files.length) return;
+  if (folderDialogOpen) return;
+  folderDialogOpen = true;
+  try {
+    const result = await window.electronAPI.openFolder();
+    if (!result || !result.files.length) return;
 
-  pathInput.value = result.folder;
-  window.setLibraryPath(result.folder);
+    pathInput.value = result.folder;
+    window.setLibraryPath(result.folder);
 
-  const audioExt = window.AUDIO_EXTENSIONS || [".mp3", ".wav", ".flac", ".ogg", ".m4a"];
-  queue = result.files.filter((f) => {
-    const name = f.replace(/\\/g, "/").split("/").pop();
-    return !name.startsWith("._") && audioExt.some((ext) => f.toLowerCase().endsWith(ext));
-  });
-  if (!queue.length) return;
+    const audioExt = window.AUDIO_EXTENSIONS || [".mp3", ".wav", ".flac", ".ogg", ".m4a"];
+    queue = result.files.filter((f) => {
+      const name = f.replace(/\\/g, "/").split("/").pop();
+      return !name.startsWith("._") && audioExt.some((ext) => f.toLowerCase().endsWith(ext));
+    });
+    if (!queue.length) return;
 
-  current = 0;
-  window.playerQueue = queue;
-  loadTrack(current);
+    current = 0;
+    window.playerQueue = queue;
+    loadTrack(current);
+  } finally {
+    folderDialogOpen = false;
+  }
 });
 
 function loadTrack(index) {
@@ -268,7 +299,7 @@ function loadTrack(index) {
 
   const rawName = activeQueue[index]?.replace(/\\/g, "/").split("/").pop() || "No track loaded";
   const name = rawName.replace(/\.[^/.]+$/, "");
-  PlaybackState.setTrackInfo(name, window.currentPlaylistCover || '');
+  PlaybackState.setTrackInfo(name, window.nowPlayingCover || window.currentPlaylistCover || '');
   PlaybackState.setPlaying(true);
   highlightActive();
 }
@@ -276,45 +307,62 @@ function loadTrack(index) {
 // --- Controls ---
 document.getElementById("btn-play").addEventListener("click", async () => {
   if (PlaybackState.mode === 'spotify') {
-    if (PlaybackState.pendingPromise) return;
-    if (window.startSpotifyAudio) window.startSpotifyAudio();
-
     const wasPlaying = PlaybackState.isPlaying;
 
-    // Optimistic UI: toggle immediately so the app feels responsive.
-    // The audio graph in librespot-renderer.js reads PlaybackState.isPlaying
-    // directly, so audio will follow this immediately.
+    if (!wasPlaying && window.startSpotifyAudio) window.startSpotifyAudio();
+
     PlaybackState.lastUserActionTime = Date.now();
-    PlaybackState.setPlaying(!wasPlaying);
 
-    // Fire IPC in the background
-    const ipcFn = wasPlaying
-      ? window.electronAPI.librespotPause
-      : window.electronAPI.librespotPlay;
+    if (wasPlaying) {
+      // --- PAUSE: save position locally ---
+      const pausePos = window.getSpotifyPosition?.() ?? PlaybackState.positionMs;
+      PlaybackState.setPlaying(false);
+      if (window.spPausePosKey && pausePos != null) {
+        try { localStorage.setItem(window.spPausePosKey, JSON.stringify({ pos: Math.floor(pausePos), ts: Date.now() })); } catch (_) {}
+      }
 
-    PlaybackState.pendingPromise = ipcFn();
+      const result = await window.electronAPI.librespotPause().catch(e => {
+        console.error("[Player] Pause IPC error:", e);
+        return { success: false, error: e.message };
+      });
+      if (!result.success) {
+        console.warn('[Player] Pause IPC failed, reverting');
+        PlaybackState.setPlaying(true);
+      }
+    } else {
+      // --- RESUME: play from saved position ---
+      let resumePos = null;
+      if (window.spPausePosKey) {
+        try {
+          const raw = localStorage.getItem(window.spPausePosKey);
+          if (raw) {
+            const saved = JSON.parse(raw);
+            // Only use saved position if it's recent (< 30 min old) and not zero
+            if (saved.pos > 0 && Date.now() - saved.ts < 1800000) {
+              resumePos = saved.pos;
+            }
+          }
+        } catch (_) {}
+      }
 
-    let result;
-    try {
-      result = await PlaybackState.pendingPromise;
-    } catch (e) {
-      console.error("[Player] IPC error:", e);
-      result = { success: false, error: e.message };
-    } finally {
-      PlaybackState.pendingPromise = null;
-    }
+      if (resumePos != null) {
+        if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(resumePos);
+        PlaybackState.setProgress(resumePos, null);
+      }
+      if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
 
-    // Reconcile with IPC result. Librespot events are ground truth,
-    // but we use the IPC return for faster error recovery.
-    if (!result.success) {
-      console.warn('[Player] IPC failed, reverting optimistic state');
-      PlaybackState.setPlaying(wasPlaying);
-    } else if (result.state) {
-      const actualPlaying = result.state === 'playing';
-      if (actualPlaying !== PlaybackState.isPlaying) {
-        PlaybackState.setPlaying(actualPlaying);
+      PlaybackState.setPlaying(true);
+
+      const result = await window.electronAPI.librespotPlay(resumePos).catch(e => {
+        console.error("[Player] Play IPC error:", e);
+        return { success: false, error: e.message };
+      });
+      if (!result.success) {
+        console.warn('[Player] Play IPC failed, reverting');
+        PlaybackState.setPlaying(false);
       }
     }
+
     return;
   }
 
@@ -343,6 +391,7 @@ btnMute.addEventListener("click", () => {
 });
 
 audio.addEventListener("ended", () => {
+  if (PlaybackState.mode !== 'local') return;
   const activeQueue = getActiveQueue();
   if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
@@ -370,9 +419,7 @@ progressBar.addEventListener("click", (e) => {
     const duration = PlaybackState.durationMs || 1;
     const newPos = Math.floor(ratio * duration);
 
-    // Immediate visual feedback
-    PlaybackState.positionMs = newPos;
-    PlaybackState.setProgress(null, null);
+    PlaybackState.setProgress(newPos, null);
     // Reset the sample-based anchor so the ticker shows the seek position
     if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(newPos);
 
@@ -409,7 +456,7 @@ function fmt(s) {
 document.getElementById("applyPath").addEventListener("click", () => {
   const pathValue = pathInput.value.trim();
   if (!pathValue) {
-    showToast("Enter a folder path first", "error");
+    showToast("Type a folder path first, then click Apply", "error");
     return;
   }
   window.setLibraryPath(pathValue);
@@ -433,7 +480,7 @@ document
       .value.trim();
 
     if (!clientId || !clientSecret) {
-      showToast("Enter both Client ID and Secret", "error");
+      showToast("Enter your Spotify Client ID and Secret to connect", "error");
       return;
     }
 
@@ -446,10 +493,10 @@ document
         showToast("Spotify connected", "success");
         document.getElementById("spotifyClientSecret").value = "";
       } else {
-        showToast("Connection failed — " + (result.error || "Unknown error"), "error");
+        showToast(friendlySpotifyError(result.error), "error");
       }
     } catch (e) {
-      showToast("Connection error — " + e.message, "error");
+      showToast(friendlySpotifyError(e.message), "error");
     }
   });
 
@@ -462,10 +509,10 @@ document
       if (result.success) {
         showToast("Spotify disconnected", "success");
       } else {
-        showToast("Failed to disconnect — " + (result.error || "Unknown error"), "error");
+        showToast("Could not disconnect from Spotify — try again", "error");
       }
     } catch (e) {
-      showToast("Disconnect error — " + e.message, "error");
+      showToast("Could not disconnect from Spotify — try again", "error");
     }
   });
 
@@ -493,6 +540,29 @@ function stopSpotifyPositionTicker() {
   }
 }
 
+// --- Friendly error messages ---
+function friendlySpotifyError(msg) {
+  if (!msg) return 'Something went wrong with Spotify'
+  const m = msg.toLowerCase()
+  if (m.includes('access_denied')) return 'Spotify access was denied — try connecting again'
+  if (m.includes('invalid state')) return 'Login check failed — try connecting again'
+  if (m.includes('token exchange') || m.includes('401') || m.includes('invalid_client'))
+    return 'Invalid Spotify credentials — check your Client ID and Secret'
+  if (m.includes('timed out') || m.includes('timeout') || m.includes('abort'))
+    return 'Connection timed out — check your internet and try again'
+  if (m.includes('eaddrinuse') || m.includes('callback server'))
+    return 'Could not start the login server — try again in a moment'
+  if (m.includes('not authenticated'))
+    return 'Sign in to Spotify first'
+  if (m.includes('403')) return 'You don\'t have permission for this on Spotify'
+  if (m.includes('404')) return 'Spotify device not found — your network may be blocking Spotify'
+  if (m.includes('429')) return 'Too many requests — wait a moment and try again'
+  if (m.includes('no device')) return 'No Spotify device connected — try reconnecting'
+  if (m.includes('no track uri') || m.includes('no api endpoint'))
+    return 'Something went wrong — try again'
+  return 'Something went wrong with Spotify — try again'
+}
+
 // --- Toast notification ---
 let toastTimer = null;
 function showToast(msg, type = 'success') {
@@ -516,8 +586,10 @@ window.spotifyPlayTrack = async (uri) => {
 
   // Prevent overlapping play calls (rapid track clicks)
   if (PlaybackState.pendingPromise) {
-    return;
+    return { success: false, error: 'play-in-progress' };
   }
+
+  PlaybackState.pendingPromise = Promise.resolve();
 
   // Always flush old PCM so the previous track doesn't bleed in
   if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
@@ -535,41 +607,46 @@ window.spotifyPlayTrack = async (uri) => {
   }
 
   // Set playing state immediately — the user explicitly requested playback.
-  // The audio graph in librespot-renderer reads this directly.
   PlaybackState.setPlaying(true);
 
-  const deviceId = await window.electronAPI.getLibrespotDeviceId();
+  // Each track gets its own localStorage key for pause-position persistence
+  window.spPausePosKey = 'tvm-pause-' + uri;
+
+  let deviceId;
+  try {
+    deviceId = await window.electronAPI.getLibrespotDeviceId();
+  } catch (e) {
+    showToast("Failed to get Spotify device ID — try reconnecting", "error");
+    PlaybackState.reset();
+    return { success: false, error: e.message };
+  }
 
   if (!deviceId) {
-    showToast("Spotify playback unavailable — no device connected");
+    showToast("Spotify isn't connected — try reconnecting in Settings", "error");
     PlaybackState.reset();
     return;
   }
 
-  // If the device is already active, skip the expensive transfer step
+  // Transfer playback to our device (no-op if already active)
   if (!PlaybackState.isDeviceActive) {
-    let xfer = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      xfer = await window.electronAPI.spotifyTransferPlayback(deviceId, true);
-      if (xfer.success) break;
-      if (attempt < 2) {
-        showToast("Spotify device not ready, retrying…");
-        await new Promise((r) => setTimeout(r, 1200));
-      }
-    }
+    const xfer = await window.electronAPI.spotifyTransferPlayback(deviceId, true);
 
     if (!xfer.success) {
-      showToast("Spotify transfer failed — " + (xfer.error || "check your connection"));
+      const errMsg = (xfer.error && xfer.error.includes('404'))
+        ? 'Spotify device not reachable — your network may be blocking Spotify'
+        : friendlySpotifyError(xfer.error);
+      showToast(errMsg, "error");
       PlaybackState.reset();
       return;
     }
     PlaybackState.isDeviceActive = true;
   }
 
-  PlaybackState.pendingPromise = window.electronAPI.spotifyPlayTrack(uri, deviceId);
+  const playPromise = window.electronAPI.spotifyPlayTrack(uri, deviceId);
+  PlaybackState.pendingPromise = playPromise;
   let result;
   try {
-    result = await PlaybackState.pendingPromise;
+    result = await playPromise;
   } catch (e) {
     console.error("[player.js] Play IPC error:", e);
     result = { success: false, error: e.message };
@@ -578,7 +655,7 @@ window.spotifyPlayTrack = async (uri) => {
   }
 
   if (!result.success) {
-    showToast("Spotify playback failed — " + (result.error || "unknown error"));
+    showToast(friendlySpotifyError(result.error), "error");
     PlaybackState.reset();
   }
 };

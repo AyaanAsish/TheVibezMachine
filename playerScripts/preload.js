@@ -23,26 +23,35 @@ contextBridge.exposeInMainWorld("electronAPI", {
   spotifyDisconnect: () => ipcRenderer.invoke("spotify-disconnect"),
   // Librespot control
   librespotPause: () => ipcRenderer.invoke("librespot-pause"),
-  librespotPlay: () => ipcRenderer.invoke("librespot-play"),
+  librespotPlay: (positionMs) => ipcRenderer.invoke("librespot-play", positionMs),
   librespotNext: () => ipcRenderer.invoke("librespot-next"),
   librespotPrev: () => ipcRenderer.invoke("librespot-prev"),
   librespotSeek: (positionMs) =>
-    ipcRenderer.invoke("librespot-seek", positionMs),
+    ipcRenderer.invoke("librespot-seek", typeof positionMs === 'number' && isFinite(positionMs) && positionMs >= 0 ? Math.floor(positionMs) : 0),
   getLibrespotDeviceId: () => ipcRenderer.invoke("get-librespot-device-id"),
+  reconnectLibrespot: () => ipcRenderer.invoke("reconnect-librespot"),
   // Librespot PCM / events / poll
   onSpotifyPcm: (callback) => {
     if (pcmCbs.has(callback)) return;
     pcmCbs.add(callback);
-    ipcRenderer.on("spotify-pcm", (_, buffer) => callback(buffer));
+    ipcRenderer.on("spotify-pcm-batch", (_, buffers) => {
+      for (let i = 0; i < buffers.length; i++) {
+        try { callback(buffers[i]); } catch (e) { console.error('[preload] onSpotifyPcm error:', e); }
+      }
+    });
   },
   onSpotifyEvent: (callback) => {
     if (eventCbs.has(callback)) return;
     eventCbs.add(callback);
-    ipcRenderer.on("spotify-event", (_, event) => callback(event));
+    ipcRenderer.on("spotify-event", (_, event) => {
+      try { callback(event); } catch (e) { console.error('[preload] onSpotifyEvent error:', e); }
+    });
   },
   onSpotifyPoll: (callback) => {
     if (pollCbs.has(callback)) return;
     pollCbs.add(callback);
-    ipcRenderer.on("spotify-poll", (_, result) => callback(result));
+    ipcRenderer.on("spotify-poll", (_, result) => {
+      try { callback(result); } catch (e) { console.error('[preload] onSpotifyPoll error:', e); }
+    });
   },
 });

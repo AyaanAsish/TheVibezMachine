@@ -5,32 +5,88 @@ try {
   console.error('[librespot-main] Failed to load native module:', err.message)
 }
 
-const { getSpotifyCredentialsRaw, ensureValidToken, spotifyPut } = require('./spotifyAuth')
-const fs = require('fs')
+const { getSpotifyCredentialsRaw, ensureValidToken, fetchWithTimeout } = require('./spotifyAuth')
+const fs = require('fs/promises')
 const path = require('path')
 const { app } = require('electron')
 
 const DEVICE_ID_FILE = path.join(app.getPath('userData'), '.spotify-device-id.json')
-
+const CREDENTIALS_FILE = path.join(app.getPath('userData'), '.spotify-librespot-creds.json')
 let librespotHost = null
 let currentWindow = null
 let deviceId = null
-let librespotCredentials = null
-let pollInterval = null
+let pcmStopped = false
+let pollTimer = null
+let pollInProgress = false
+let reconnectInProgress = false
+let initInProgress = false
+let lastReconnectFailTime = 0
+const RECONNECT_COOLDOWN_MS = 60000
+const NATIVE_TIMEOUT_MS = 15000
+
+// PCM batching: buffer chunks and drain as a single IPC message every ~50ms
+const PCM_BATCH_INTERVAL_MS = 25
+const PCM_MAX_BUFFERED = 100
+let pcmBatch = []
+let pcmDrainTimer = null
+
+function drainPcmBatch() {
+  if (pcmBatch.length === 0) {
+    pcmDrainTimer = null
+    return
+  }
+  if (currentWindow && !currentWindow.isDestroyed()) {
+    currentWindow.webContents.send('spotify-pcm-batch', pcmBatch)
+  }
+  pcmBatch = []
+  if (!pcmStopped) {
+    pcmDrainTimer = setTimeout(drainPcmBatch, PCM_BATCH_INTERVAL_MS)
+    pcmDrainTimer.unref()
+  } else {
+    pcmDrainTimer = null
+  }
+}
+
+function queuePcmChunk(chunk) {
+  if (pcmStopped) return
+  const ab = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.length)
+  if (pcmBatch.length >= PCM_MAX_BUFFERED) {
+    pcmBatch.shift()
+  }
+  pcmBatch.push(ab)
+  if (!pcmDrainTimer) {
+    pcmDrainTimer = setTimeout(drainPcmBatch, PCM_BATCH_INTERVAL_MS)
+    pcmDrainTimer.unref()
+  }
+}
 
 async function pollPlaybackState() {
+  if (pollInProgress) return
+  pollInProgress = true
   const creds = getSpotifyCredentialsRaw()
-  if (!creds || !currentWindow || currentWindow.isDestroyed()) return
+  if (!creds || !currentWindow || currentWindow.isDestroyed()) {
+    pollInProgress = false
+    return
+  }
   try {
     await ensureValidToken()
-    const res = await fetch('https://api.spotify.com/v1/me/player', {
+    const res = await fetchWithTimeout('https://api.spotify.com/v1/me/player', {
       headers: { 'Authorization': 'Bearer ' + creds.accessToken }
     })
     if (res.status === 204) {
-      currentWindow.webContents.send('spotify-poll', { success: true, data: null })
+      if (currentWindow && !currentWindow.isDestroyed()) {
+        currentWindow.webContents.send('spotify-poll', { success: true, data: null })
+      }
       return
     }
     if (res.status === 429) {
+      const retryAfter = res.headers.get('Retry-After')
+      const delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 10000
+      stopPlaybackPolling()
+      pollTimer = setTimeout(() => {
+        pollTimer = null
+        startPlaybackPolling()
+      }, delay)
       return
     }
     if (!res.ok) {
@@ -39,75 +95,71 @@ async function pollPlaybackState() {
       return
     }
     const data = await res.json()
-    currentWindow.webContents.send('spotify-poll', { success: true, data })
+    if (currentWindow && !currentWindow.isDestroyed()) {
+      currentWindow.webContents.send('spotify-poll', { success: true, data })
+    }
   } catch (err) {
-    console.warn('[librespot-main] Poll exception:', err.message)
+    if (err.name === 'AbortError') {
+      console.warn('[librespot-main] Poll timed out')
+    } else {
+      console.warn('[librespot-main] Poll exception:', err.message)
+    }
+  } finally {
+    pollInProgress = false
   }
 }
 
 function startPlaybackPolling() {
-  if (pollInterval) clearInterval(pollInterval)
-  pollInterval = setInterval(pollPlaybackState, 5000)
+  if (pollTimer) clearTimeout(pollTimer)
+  pollTimer = setInterval(pollPlaybackState, 5000)
 }
 
 function stopPlaybackPolling() {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
+  if (pollTimer) {
+    clearTimeout(pollTimer)
+    pollTimer = null
   }
 }
 
-async function ensureDeviceActive() {
-  const creds = getSpotifyCredentialsRaw()
-  if (!creds) return { success: false, error: 'Not authenticated' }
-  if (!deviceId) return { success: false, error: 'No device ID' }
-  try {
-    await ensureValidToken()
-    const res = await fetch('https://api.spotify.com/v1/me/player', {
-      headers: { 'Authorization': 'Bearer ' + creds.accessToken }
-    })
-    if (res.status === 204) {
-      // No active device — transfer to ours
-      return spotifyPut('/me/player', { device_ids: [deviceId], play: false })
-    }
-    if (!res.ok) {
-      const err = await res.text()
-      return { success: false, error: `Spotify API error ${res.status}: ${err}` }
-    }
-    const data = await res.json()
-    if (data.device && data.device.id === deviceId) {
-      return { success: true }
-    }
-    // Active device is not ours — transfer
-    return spotifyPut('/me/player', { device_ids: [deviceId], play: false })
-  } catch (err) {
-    return { success: false, error: err.message }
-  }
-}
-
-function loadOrCreateDeviceId() {
+async function loadOrCreateDeviceId() {
   if (deviceId) return deviceId
   try {
-    if (fs.existsSync(DEVICE_ID_FILE)) {
-      const data = JSON.parse(fs.readFileSync(DEVICE_ID_FILE, 'utf8'))
-      if (data.deviceId) {
-        deviceId = data.deviceId
-        return deviceId
-      }
+    await fs.access(DEVICE_ID_FILE)
+    const raw = await fs.readFile(DEVICE_ID_FILE, 'utf8')
+    const data = JSON.parse(raw)
+    if (data.deviceId) {
+      deviceId = data.deviceId
+      return deviceId
     }
   } catch (_) {}
   const id = 'thevibezmachine-' + Math.random().toString(36).substring(2, 15)
   deviceId = id
   try {
-    fs.writeFileSync(DEVICE_ID_FILE, JSON.stringify({ deviceId: id }))
-  } catch (_) {}
+    await fs.writeFile(DEVICE_ID_FILE, JSON.stringify({ deviceId: id }))
+  } catch (e) {
+    console.warn('[librespot-main] Failed to persist device ID:', e.message)
+  }
   return id
 }
 
+function withTimeout(promise, ms) {
+  let timer
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms)
+      timer.unref()
+    })
+  ]).finally(() => clearTimeout(timer))
+}
+
 async function initLibrespot(win) {
+  if (initInProgress) return
+  initInProgress = true
   currentWindow = win
   const creds = getSpotifyCredentialsRaw()
   if (!creds || !creds.accessToken || !creds.clientId) {
+    initInProgress = false
     return
   }
 
@@ -115,10 +167,13 @@ async function initLibrespot(win) {
     await ensureValidToken()
   } catch (e) {
     console.error('[librespot-main] Token refresh failed:', e.message)
+    initInProgress = false
     return
   }
 
   const freshCreds = getSpotifyCredentialsRaw()
+
+  stopPlaybackPolling()
 
   if (librespotHost) {
     try {
@@ -127,52 +182,74 @@ async function initLibrespot(win) {
     librespotHost = null
   }
 
-  deviceId = loadOrCreateDeviceId()
+  deviceId = null
+  pcmStopped = true
+  deviceId = await loadOrCreateDeviceId()
+  pcmStopped = false
 
   if (!librespot) {
+    initInProgress = false
     return
   }
 
   try {
     librespot.setLogLevel('info')
 
-    const loginResult = await librespot.loginWithAccessToken(freshCreds.accessToken, 'TheVibezMachine')
-    librespotCredentials = loginResult.credentialsJson
+    const loginResult = await withTimeout(
+      librespot.loginWithAccessToken(freshCreds.accessToken, 'TheVibezMachine'),
+      NATIVE_TIMEOUT_MS
+    )
 
-    const credsFile = path.join(app.getPath('userData'), '.spotify-librespot-creds.json')
-    fs.writeFileSync(credsFile, librespotCredentials)
+    await fs.writeFile(CREDENTIALS_FILE, loginResult.credentialsJson, { mode: 0o600 })
 
-    librespotHost = await librespot.startConnectDeviceWithCredentials(
-      credsFile,
-      'TheVibezMachine',
-      deviceId,
-      (chunk) => {
-        if (currentWindow && !currentWindow.isDestroyed()) {
-          const ab = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.length)
-          currentWindow.webContents.send('spotify-pcm', ab)
-        }
-      },
-      (event) => {
-        if (event.type === 'health' || event.type === 'metric') {
+    librespotHost = await withTimeout(
+      librespot.startConnectDeviceWithCredentials(
+        CREDENTIALS_FILE,
+        'TheVibezMachine',
+        deviceId,
+        (chunk) => {
+          queuePcmChunk(chunk)
+        },
+        (event) => {
+          if (event.type === 'health' || event.type === 'metric') {
+            if (currentWindow && !currentWindow.isDestroyed()) {
+              currentWindow.webContents.send('spotify-event', { type: event.type, keepalive: true })
+            }
+            return
+          }
           if (currentWindow && !currentWindow.isDestroyed()) {
             currentWindow.webContents.send('spotify-event', event)
           }
-          return
-        }
-        if (currentWindow && !currentWindow.isDestroyed()) {
-          currentWindow.webContents.send('spotify-event', event)
-        }
-      },
-      null
+        },
+        null
+      ),
+      NATIVE_TIMEOUT_MS
     )
+    lastReconnectFailTime = 0
     startPlaybackPolling()
+    if (currentWindow && !currentWindow.isDestroyed()) {
+      currentWindow.webContents.send('spotify-event', { type: 'ready' })
+    }
   } catch (err) {
-    console.error('[librespot-main] Failed to start Connect device:', err)
+    console.error('[librespot-main] Failed to start Connect device:', err.message || err)
+    lastReconnectFailTime = Date.now()
+    if (librespotHost) {
+      try { librespotHost.shutdown() } catch (_) {}
+      librespotHost = null
+    }
+  } finally {
+    initInProgress = false
   }
 }
 
 function stopLibrespot() {
   stopPlaybackPolling()
+  pcmStopped = true
+  if (pcmDrainTimer) {
+    clearTimeout(pcmDrainTimer)
+    pcmDrainTimer = null
+  }
+  pcmBatch = []
   if (librespotHost) {
     try {
       librespotHost.shutdown()
@@ -180,11 +257,39 @@ function stopLibrespot() {
     librespotHost = null
   }
   deviceId = null
-  librespotCredentials = null
+  fs.unlink(CREDENTIALS_FILE).catch(() => {})
+}
+
+async function reconnectLibrespot() {
+  if (reconnectInProgress || !currentWindow || currentWindow.isDestroyed()) return false
+  if (Date.now() - lastReconnectFailTime < RECONNECT_COOLDOWN_MS) {
+    console.warn('[librespot-main] Skipping reconnect — cooldown active')
+    return false
+  }
+  reconnectInProgress = true
+  console.log('[librespot-main] Attempting to reconnect Spotify Connect device...')
+  try {
+    await initLibrespot(currentWindow)
+    if (librespotHost) {
+      console.log('[librespot-main] Reconnection successful')
+      return true
+    }
+    console.warn('[librespot-main] Reconnection failed — no librespot host')
+    return false
+  } catch (err) {
+    console.error('[librespot-main] Reconnection error:', err.message)
+    return false
+  } finally {
+    reconnectInProgress = false
+  }
 }
 
 function getLibrespotDeviceId() {
   return deviceId
+}
+
+function clearReconnectCooldown() {
+  lastReconnectFailTime = 0
 }
 
 async function spotifyApiPlayPause(action) {
@@ -194,10 +299,11 @@ async function spotifyApiPlayPause(action) {
   try {
     await ensureValidToken()
     const url = 'https://api.spotify.com/v1/me/player/' + action + '?device_id=' + encodeURIComponent(deviceId)
-    const res = await fetch(url, {
+    const options = {
       method: 'PUT',
       headers: { 'Authorization': 'Bearer ' + creds.accessToken }
-    })
+    }
+    const res = await fetchWithTimeout(url, options)
     if (res.status === 204 || res.status === 202) {
       return { success: true, state: action === 'play' ? 'playing' : 'paused' }
     }
@@ -207,13 +313,45 @@ async function spotifyApiPlayPause(action) {
     const err = await res.text()
     return { success: false, error: `Spotify API error ${res.status}: ${err}` }
   } catch (err) {
+    if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
+    return { success: false, error: err.message }
+  }
+}
+
+async function spotifyApiSeek(positionMs) {
+  const creds = getSpotifyCredentialsRaw()
+  if (!creds) return { success: false, error: 'Not authenticated' }
+  if (!deviceId) return { success: false, error: 'No device ID' }
+  try {
+    await ensureValidToken()
+    const url = 'https://api.spotify.com/v1/me/player/seek?position_ms=' + Math.floor(positionMs) + '&device_id=' + encodeURIComponent(deviceId)
+    const res = await fetchWithTimeout(url, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + creds.accessToken } })
+    if (res.status === 204 || res.status === 202) {
+      return { success: true }
+    }
+    if (res.status === 404) {
+      return { success: false, error: 'NO_ACTIVE_DEVICE', status: 404 }
+    }
+    const err = await res.text()
+    return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+  } catch (err) {
+    if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
     return { success: false, error: err.message }
   }
 }
 
 function registerLibrespotIpcs(ipcMain) {
   ipcMain.handle('librespot-pause', async () => {
-    const apiResult = await spotifyApiPlayPause('pause')
+    let apiResult = await spotifyApiPlayPause('pause')
+
+    // Auto-reconnect if the device was dropped (404 = no active device)
+    if (apiResult.error === 'NO_ACTIVE_DEVICE') {
+      const reconnected = await reconnectLibrespot()
+      if (reconnected) {
+        apiResult = await spotifyApiPlayPause('pause')
+      }
+    }
+
     if (apiResult.success) return apiResult
     if (!librespotHost) return { success: false, error: apiResult.error }
     try {
@@ -224,8 +362,35 @@ function registerLibrespotIpcs(ipcMain) {
     }
   })
 
-  ipcMain.handle('librespot-play', async () => {
-    const apiResult = await spotifyApiPlayPause('play')
+  ipcMain.handle('librespot-play', async (_event, positionMs) => {
+    // When resuming with a saved position, seek first to guarantee the
+    // position is honoured. The position_ms parameter on /me/player/play
+    // is designed for new playback contexts (with uris), not for resuming
+    // paused Connect devices — Spotify may ignore it and resume from its
+    // own internal position, causing a skip.
+    if (positionMs != null) {
+      let seekResult = await spotifyApiSeek(positionMs)
+      if (seekResult.error === 'NO_ACTIVE_DEVICE') {
+        const reconnected = await reconnectLibrespot()
+        if (reconnected) {
+          seekResult = await spotifyApiSeek(positionMs)
+        }
+      }
+    }
+
+    let apiResult = await spotifyApiPlayPause('play')
+
+    if (apiResult.error === 'NO_ACTIVE_DEVICE') {
+      const reconnected = await reconnectLibrespot()
+      if (reconnected) {
+        // Re-seek after reconnect since the new session may have lost position
+        if (positionMs != null) {
+          await spotifyApiSeek(positionMs)
+        }
+        apiResult = await spotifyApiPlayPause('play')
+      }
+    }
+
     if (apiResult.success) return apiResult
     if (!librespotHost) return { success: false, error: apiResult.error }
     try {
@@ -237,65 +402,70 @@ function registerLibrespotIpcs(ipcMain) {
   })
 
   ipcMain.handle('librespot-next', async () => {
-    if (librespotHost && typeof librespotHost.next === 'function') {
-      try {
-        librespotHost.next()
-        return { success: true }
-      } catch (e) {
-        return { success: false, error: e.message }
-      }
-    }
+    if (!deviceId) return { success: false, error: 'No device ID' }
     const creds = getSpotifyCredentialsRaw()
     if (!creds) return { success: false, error: 'Not authenticated' }
     try {
       await ensureValidToken()
-      const res = await fetch('https://api.spotify.com/v1/me/player/next', {
+      const res = await fetchWithTimeout('https://api.spotify.com/v1/me/player/next?device_id=' + encodeURIComponent(deviceId), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + creds.accessToken }
       })
       if (res.status === 204 || res.status === 202) {
         return { success: true }
       }
+      if (res.status === 404 && librespotHost && typeof librespotHost.next === 'function') {
+        try {
+          librespotHost.next()
+          return { success: true }
+        } catch (e) {
+          return { success: false, error: e.message }
+        }
+      }
       const err = await res.text()
       return { success: false, error: `Spotify API error ${res.status}: ${err}` }
     } catch (err) {
+      if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
       return { success: false, error: err.message }
     }
   })
 
   ipcMain.handle('librespot-prev', async () => {
-    if (librespotHost && typeof librespotHost.prev === 'function') {
-      try {
-        librespotHost.prev()
-        return { success: true }
-      } catch (e) {
-        return { success: false, error: e.message }
-      }
-    }
+    if (!deviceId) return { success: false, error: 'No device ID' }
     const creds = getSpotifyCredentialsRaw()
     if (!creds) return { success: false, error: 'Not authenticated' }
     try {
       await ensureValidToken()
-      const res = await fetch('https://api.spotify.com/v1/me/player/previous', {
+      const res = await fetchWithTimeout('https://api.spotify.com/v1/me/player/previous?device_id=' + encodeURIComponent(deviceId), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + creds.accessToken }
       })
       if (res.status === 204 || res.status === 202) {
         return { success: true }
       }
+      if (res.status === 404 && librespotHost && typeof librespotHost.prev === 'function') {
+        try {
+          librespotHost.prev()
+          return { success: true }
+        } catch (e) {
+          return { success: false, error: e.message }
+        }
+      }
       const err = await res.text()
       return { success: false, error: `Spotify API error ${res.status}: ${err}` }
     } catch (err) {
+      if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
       return { success: false, error: err.message }
     }
   })
 
   ipcMain.handle('librespot-seek', async (_event, positionMs) => {
+    if (!deviceId) return { success: false, error: 'No device ID' }
     const creds = getSpotifyCredentialsRaw()
     if (!creds) return { success: false, error: 'Not authenticated' }
     try {
       await ensureValidToken()
-      const res = await fetch('https://api.spotify.com/v1/me/player/seek?position_ms=' + Math.floor(positionMs), {
+      const res = await fetchWithTimeout('https://api.spotify.com/v1/me/player/seek?position_ms=' + Math.floor(positionMs) + '&device_id=' + encodeURIComponent(deviceId), {
         method: 'PUT',
         headers: {
           'Authorization': 'Bearer ' + creds.accessToken
@@ -307,6 +477,7 @@ function registerLibrespotIpcs(ipcMain) {
       const err = await res.text()
       return { success: false, error: `Spotify API error ${res.status}: ${err}` }
     } catch (err) {
+      if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
       return { success: false, error: err.message }
     }
   })
@@ -314,6 +485,11 @@ function registerLibrespotIpcs(ipcMain) {
   ipcMain.handle('get-librespot-device-id', () => {
     return getLibrespotDeviceId()
   })
+
+  ipcMain.handle('reconnect-librespot', async () => {
+    const result = await reconnectLibrespot()
+    return result ? { success: true } : { success: false, error: 'Reconnection failed' }
+  })
 }
 
-module.exports = { initLibrespot, stopLibrespot, getLibrespotDeviceId, registerLibrespotIpcs }
+module.exports = { initLibrespot, stopLibrespot, getLibrespotDeviceId, reconnectLibrespot, clearReconnectCooldown, registerLibrespotIpcs }

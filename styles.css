@@ -215,7 +215,14 @@ footer.player-visible {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, opacity 0.3s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#footer-trigger.visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 #footer-trigger:hover {

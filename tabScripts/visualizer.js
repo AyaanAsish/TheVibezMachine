@@ -35,7 +35,9 @@ const initVisualizer = () => {
   }
 
   const canvas = document.getElementById("visCanvas");
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+    sampleRate: 44100,
+  });
   const visualizer = bcBase.createVisualizer(audioContext, canvas, {
     width: canvas.clientWidth,
     height: canvas.clientHeight,
@@ -47,7 +49,7 @@ const initVisualizer = () => {
 
   resizeCanvas(canvas, visualizer);
 
-  const presetKeys = Object.keys(presets);
+  const presetKeys = Object.keys(presets).slice(0, 10);
   if (presetKeys.length > 0) {
     visualizer.loadPreset(presets[presetKeys[0]], 0.0);
   }

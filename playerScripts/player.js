@@ -319,6 +319,21 @@ document.getElementById("btn-play").addEventListener("click", async () => {
       PlaybackState.setPlaying(false);
       if (window.spPausePosKey && pausePos != null) {
         try { localStorage.setItem(window.spPausePosKey, JSON.stringify({ pos: Math.floor(pausePos), ts: Date.now() })); } catch (_) {}
+        // Clean up old pause position entries (older than 12 hours)
+        try {
+          const cutoff = Date.now() - 43200000;
+          const toRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('tvm-pause-')) {
+              try {
+                const v = JSON.parse(localStorage.getItem(k));
+                if (v.ts < cutoff) toRemove.push(k);
+              } catch (_) {}
+            }
+          }
+          toRemove.forEach(k => localStorage.removeItem(k));
+        } catch (_) {}
       }
 
       const result = await window.electronAPI.librespotPause().catch(e => {
@@ -331,7 +346,7 @@ document.getElementById("btn-play").addEventListener("click", async () => {
       }
     } else {
       // --- RESUME: play from saved position ---
-      let resumePos = null;
+      let savedPause = null;
       if (window.spPausePosKey) {
         try {
           const raw = localStorage.getItem(window.spPausePosKey);
@@ -339,11 +354,40 @@ document.getElementById("btn-play").addEventListener("click", async () => {
             const saved = JSON.parse(raw);
             // Only use saved position if it's recent (< 30 min old) and not zero
             if (saved.pos > 0 && Date.now() - saved.ts < 1800000) {
-              resumePos = saved.pos;
+              savedPause = saved;
             }
           }
         } catch (_) {}
       }
+
+      let resumePos = savedPause ? savedPause.pos : null;
+
+      // Guard rails: discard saved position in scenarios that cause skips.
+      // - Near end of track (< 10s remaining): seeking here can immediately
+      //   trigger end_of_track and advance to the next song.
+      // - Pause lasted longer than remaining track time: Spotify may have
+      //   internally advanced the queue while we were paused.
+      // - Very long pause (> 5 min): device may have been dropped; resuming
+      //   from start is safer than risking a wrong-position resume.
+      if (resumePos != null && PlaybackState.durationMs > 0) {
+        const remaining = PlaybackState.durationMs - resumePos;
+        const pauseDuration = Date.now() - savedPause.ts;
+        if (remaining < 10000 || pauseDuration > remaining || pauseDuration > 300000) {
+          resumePos = null;
+        }
+      }
+
+      // Extract the track URI from the pause key so the main process can
+      // use the explicit /v1/me/player/play endpoint with position_ms.
+      // This is more reliable than generic play + separate seek.
+      const trackUri = window.spPausePosKey ? window.spPausePosKey.replace('tvm-pause-', '') : null;
+
+      // Raise prebuffer threshold so wrong-position PCM that arrives
+      // during the IPC round-trip is absorbed silently.
+      // Also set resume guard to prevent playing events from overwriting
+      // the anchor until the seek has landed.
+      if (window.setPrebufferThreshold) window.setPrebufferThreshold(8);
+      if (window.setResumeGuard) window.setResumeGuard(true);
 
       if (resumePos != null) {
         if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(resumePos);
@@ -353,13 +397,34 @@ document.getElementById("btn-play").addEventListener("click", async () => {
 
       PlaybackState.setPlaying(true);
 
-      const result = await window.electronAPI.librespotPlay(resumePos).catch(e => {
+      const result = await window.electronAPI.librespotPlay(resumePos, trackUri).catch(e => {
         console.error("[Player] Play IPC error:", e);
         return { success: false, error: e.message };
       });
-      if (!result.success) {
+
+      // After IPC: set seek target to block unmuting until the position
+      // is confirmed, flush stale PCM, reset threshold, and do a second
+      // seek for safety. The resume guard stays up until the second seek
+      // has time to land.
+      if (resumePos != null && result?.success) {
+        if (window.setResumeSeekTarget) window.setResumeSeekTarget(resumePos);
+        if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
+        if (window.resetPrebufferThreshold) window.resetPrebufferThreshold();
+        if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(resumePos);
+        window.electronAPI.librespotSeek(resumePos).catch(() => {});
+        // Release the resume guard after a short delay to let the second
+        // seek's playing event arrive and be accepted.
+        setTimeout(() => {
+          if (window.setResumeGuard) window.setResumeGuard(false);
+        }, 1500);
+      } else if (!result?.success) {
+        if (window.resetPrebufferThreshold) window.resetPrebufferThreshold();
+        if (window.setResumeGuard) window.setResumeGuard(false);
         console.warn('[Player] Play IPC failed, reverting');
         PlaybackState.setPlaying(false);
+      } else {
+        if (window.resetPrebufferThreshold) window.resetPrebufferThreshold();
+        if (window.setResumeGuard) window.setResumeGuard(false);
       }
     }
 

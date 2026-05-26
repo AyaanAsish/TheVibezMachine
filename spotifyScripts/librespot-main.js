@@ -340,6 +340,39 @@ async function spotifyApiSeek(positionMs) {
   }
 }
 
+async function spotifyApiPlayTrack(trackUri, positionMs) {
+  const creds = getSpotifyCredentialsRaw()
+  if (!creds) return { success: false, error: 'Not authenticated' }
+  if (!deviceId) return { success: false, error: 'No device ID' }
+  try {
+    await ensureValidToken()
+    const url = 'https://api.spotify.com/v1/me/player/play?device_id=' + encodeURIComponent(deviceId)
+    const body = {
+      uris: [trackUri],
+      position_ms: Math.floor(positionMs)
+    }
+    const res = await fetchWithTimeout(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + creds.accessToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+    if (res.status === 204 || res.status === 202) {
+      return { success: true, state: 'playing' }
+    }
+    if (res.status === 404) {
+      return { success: false, error: 'NO_ACTIVE_DEVICE', status: 404 }
+    }
+    const err = await res.text()
+    return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+  } catch (err) {
+    if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
+    return { success: false, error: err.message }
+  }
+}
+
 function registerLibrespotIpcs(ipcMain) {
   ipcMain.handle('librespot-pause', async () => {
     let apiResult = await spotifyApiPlayPause('pause')
@@ -362,12 +395,27 @@ function registerLibrespotIpcs(ipcMain) {
     }
   })
 
-  ipcMain.handle('librespot-play', async (_event, positionMs) => {
-    // When resuming with a saved position, seek first to guarantee the
-    // position is honoured. The position_ms parameter on /me/player/play
-    // is designed for new playback contexts (with uris), not for resuming
-    // paused Connect devices — Spotify may ignore it and resume from its
-    // own internal position, causing a skip.
+  ipcMain.handle('librespot-play', async (_event, positionMs, trackUri) => {
+    // When we know the track URI and a resume position, use the explicit
+    // /v1/me/player/play endpoint with { uris, position_ms } in the body.
+    // This is a single atomic call that starts playback at the exact
+    // position, avoiding the race condition of play-then-seek or
+    // seek-then-play where the track can skip before the seek lands.
+    if (trackUri && positionMs != null) {
+      let explicitResult = await spotifyApiPlayTrack(trackUri, positionMs)
+      if (explicitResult.error === 'NO_ACTIVE_DEVICE') {
+        const reconnected = await reconnectLibrespot()
+        if (reconnected) {
+          explicitResult = await spotifyApiPlayTrack(trackUri, positionMs)
+        }
+      }
+      if (explicitResult.success) return explicitResult
+      // Fall through to generic play as a last resort
+      console.warn('[librespot-main] Explicit play with position failed, falling back to generic play:', explicitResult.error)
+    }
+
+    // Fallback: try seek-before-play. If the device is active and paused,
+    // the seek may stick; if not, the play will at least get audio going.
     if (positionMs != null) {
       let seekResult = await spotifyApiSeek(positionMs)
       if (seekResult.error === 'NO_ACTIVE_DEVICE') {
@@ -376,6 +424,10 @@ function registerLibrespotIpcs(ipcMain) {
           seekResult = await spotifyApiSeek(positionMs)
         }
       }
+      // Log seek failure but continue — play might still work
+      if (!seekResult.success) {
+        console.warn('[librespot-main] Pre-play seek failed:', seekResult.error)
+      }
     }
 
     let apiResult = await spotifyApiPlayPause('play')
@@ -383,10 +435,6 @@ function registerLibrespotIpcs(ipcMain) {
     if (apiResult.error === 'NO_ACTIVE_DEVICE') {
       const reconnected = await reconnectLibrespot()
       if (reconnected) {
-        // Re-seek after reconnect since the new session may have lost position
-        if (positionMs != null) {
-          await spotifyApiSeek(positionMs)
-        }
         apiResult = await spotifyApiPlayPause('play')
       }
     }

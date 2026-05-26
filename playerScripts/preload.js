@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   spotifyDisconnect: () => ipcRenderer.invoke("spotify-disconnect"),
   // Librespot control
   librespotPause: () => ipcRenderer.invoke("librespot-pause"),
-  librespotPlay: (positionMs) => ipcRenderer.invoke("librespot-play", positionMs),
+  librespotPlay: (positionMs, trackUri) => ipcRenderer.invoke("librespot-play", positionMs, trackUri),
   librespotNext: () => ipcRenderer.invoke("librespot-next"),
   librespotPrev: () => ipcRenderer.invoke("librespot-prev"),
   librespotSeek: (positionMs) =>

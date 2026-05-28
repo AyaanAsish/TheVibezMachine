@@ -126,8 +126,8 @@ const PlaybackState = {
           if (newTrack.albumImage) {
             if (window.updatePlayerCover) window.updatePlayerCover(newTrack.albumImage);
           }
-          await window.spotifyPlayTrack(q[newIdx].uri);
           window.spotifyCurrentIndex = newIdx;
+          await window.spotifyPlayTrack(q[newIdx].uri);
         } else if (q && q.length > 0) {
           // Queue exists but we're at the end (or beginning for prev).
           // Only call next/prev if we have an in-app queue — for remote
@@ -318,7 +318,24 @@ document.getElementById("btn-play").addEventListener("click", async () => {
       const pausePos = window.getSpotifyPosition?.() ?? PlaybackState.positionMs;
       PlaybackState.setPlaying(false);
       if (window.spPausePosKey && pausePos != null) {
-        try { localStorage.setItem(window.spPausePosKey, JSON.stringify({ pos: Math.floor(pausePos), ts: Date.now() })); } catch (_) {}
+        const pauseTs = Date.now();
+        try { localStorage.setItem(window.spPausePosKey, JSON.stringify({ pos: Math.floor(pausePos), ts: pauseTs })); } catch (_) {}
+        // Also save the unified pause state so resume has fresh data even if
+        // the librespot 'paused' event is delayed or never arrives.
+        const currentUri = window.PlaybackState.lastTrackUri || window.spPausePosKey.replace('tvm-pause-', '');
+        const currentDuration = window.PlaybackState.durationMs || 0;
+        try {
+          localStorage.setItem('tvm-pause-state', JSON.stringify({
+            uri: currentUri,
+            pos: Math.floor(pausePos),
+            durationMs: currentDuration,
+            ts: pauseTs
+          }));
+        } catch (_) {}
+        // Explicitly freeze the sample-based anchor so getSpotifyPosition()
+        // stays stable while paused.
+        if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(pausePos);
+
         // Clean up old pause position entries (older than 12 hours)
         try {
           const cutoff = Date.now() - 43200000;
@@ -345,86 +362,76 @@ document.getElementById("btn-play").addEventListener("click", async () => {
         PlaybackState.setPlaying(true);
       }
     } else {
-      // --- RESUME: play from saved position ---
-      let savedPause = null;
-      if (window.spPausePosKey) {
-        try {
-          const raw = localStorage.getItem(window.spPausePosKey);
-          if (raw) {
-            const saved = JSON.parse(raw);
-            // Only use saved position if it's recent (< 30 min old) and not zero
-            if (saved.pos > 0 && Date.now() - saved.ts < 1800000) {
-              savedPause = saved;
-            }
+      // --- RESUME: read the unified pause state and replay from there ---
+      let resumeUri = null;
+      let resumePos = 0;
+      let resumeDuration = 0;
+      let pauseTs = 0;
+      try {
+        const raw = localStorage.getItem('tvm-pause-state');
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s.uri && Date.now() - s.ts < 1800000) {
+            resumeUri = s.uri;
+            resumePos = s.pos || 0;
+            resumeDuration = s.durationMs || 0;
+            pauseTs = s.ts || 0;
           }
-        } catch (_) {}
-      }
-
-      let resumePos = savedPause ? savedPause.pos : null;
-
-      // Guard rails: discard saved position in scenarios that cause skips.
-      // - Near end of track (< 10s remaining): seeking here can immediately
-      //   trigger end_of_track and advance to the next song.
-      // - Pause lasted longer than remaining track time: Spotify may have
-      //   internally advanced the queue while we were paused.
-      // - Very long pause (> 5 min): device may have been dropped; resuming
-      //   from start is safer than risking a wrong-position resume.
-      if (resumePos != null && PlaybackState.durationMs > 0) {
-        const remaining = PlaybackState.durationMs - resumePos;
-        const pauseDuration = Date.now() - savedPause.ts;
-        if (remaining < 10000 || pauseDuration > remaining || pauseDuration > 300000) {
-          resumePos = null;
         }
+      } catch (_) {}
+
+      // Fallback to whatever we think is playing if no pause state
+      if (!resumeUri) {
+        resumeUri = window.PlaybackState.lastTrackUri || null;
+      }
+      if (!resumeUri) {
+        showToast("No track to resume", "error");
+        PlaybackState.setPlaying(false);
+        return;
       }
 
-      // Extract the track URI from the pause key so the main process can
-      // use the explicit /v1/me/player/play endpoint with position_ms.
-      // This is more reliable than generic play + separate seek.
-      const trackUri = window.spPausePosKey ? window.spPausePosKey.replace('tvm-pause-', '') : null;
+      // Ensure the audio graph is active before any API calls. After a long
+      // pause the AudioContext may be suspended, which prevents the ticker
+      // and PCM consumption from running.
+      if (window.startSpotifyAudio) window.startSpotifyAudio();
 
-      // Raise prebuffer threshold so wrong-position PCM that arrives
-      // during the IPC round-trip is absorbed silently.
-      // Also set resume guard to prevent playing events from overwriting
-      // the anchor until the seek has landed.
-      if (window.setPrebufferThreshold) window.setPrebufferThreshold(8);
-      if (window.setResumeGuard) window.setResumeGuard(true);
+      // Always ensure mode is spotify and ticker is running before API calls.
+      // After a long pause the ticker may have been stopped and mode lost.
+      PlaybackState.setMode('spotify');
+      startSpotifyPositionTicker();
 
-      if (resumePos != null) {
-        if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(resumePos);
-        PlaybackState.setProgress(resumePos, null);
-      }
-      if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
+      // Tell the renderer what position we expect so it can block unmuting
+      // until a playing event confirms the device is actually there. This
+      // prevents the audible blip when the device ignores position_ms and
+      // starts from 0, and prevents delayed events from previous playthroughs
+      // from corrupting the position anchor.
+      window.expectedResumePos = resumePos;
+      window.expectedResumeUri = resumeUri;
 
+      if (window.flushSpotifyBuffers) window.flushSpotifyBuffers(resumePos, 8);
+      PlaybackState.setProgress(resumePos, null);
       PlaybackState.setPlaying(true);
 
-      const result = await window.electronAPI.librespotPlay(resumePos, trackUri).catch(e => {
+      // Pass the in-app queue so Spotify keeps context across the resume.
+      // Without this, the play() call resets the queue to a single track and
+      // Spotify can no longer auto-advance when a track finishes.
+      const q = window.spotifyQueue;
+      const idx = window.spotifyCurrentIndex;
+      const resumeQueueUris = (q && Array.isArray(q) && idx != null && idx >= 0 && idx < q.length)
+        ? q.slice(idx).map(t => t.uri).filter(Boolean)
+        : [resumeUri];
+
+      // Atomic play: single endpoint with exact track + exact position.
+      const result = await window.electronAPI.librespotPlay(resumePos, resumeUri, resumeQueueUris).catch(e => {
         console.error("[Player] Play IPC error:", e);
         return { success: false, error: e.message };
       });
 
-      // After IPC: set seek target to block unmuting until the position
-      // is confirmed, flush stale PCM, reset threshold, and do a second
-      // seek for safety. The resume guard stays up until the second seek
-      // has time to land.
-      if (resumePos != null && result?.success) {
-        if (window.setResumeSeekTarget) window.setResumeSeekTarget(resumePos);
-        if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
-        if (window.resetPrebufferThreshold) window.resetPrebufferThreshold();
-        if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(resumePos);
-        window.electronAPI.librespotSeek(resumePos).catch(() => {});
-        // Release the resume guard after a short delay to let the second
-        // seek's playing event arrive and be accepted.
-        setTimeout(() => {
-          if (window.setResumeGuard) window.setResumeGuard(false);
-        }, 1500);
-      } else if (!result?.success) {
-        if (window.resetPrebufferThreshold) window.resetPrebufferThreshold();
-        if (window.setResumeGuard) window.setResumeGuard(false);
+      if (!result?.success) {
+        window.expectedResumePos = null;
+        window.expectedResumeUri = null;
         console.warn('[Player] Play IPC failed, reverting');
         PlaybackState.setPlaying(false);
-      } else {
-        if (window.resetPrebufferThreshold) window.resetPrebufferThreshold();
-        if (window.setResumeGuard) window.setResumeGuard(false);
       }
     }
 
@@ -484,12 +491,11 @@ progressBar.addEventListener("click", (e) => {
     const duration = PlaybackState.durationMs || 1;
     const newPos = Math.floor(ratio * duration);
 
-    PlaybackState.setProgress(newPos, null);
-    // Reset the sample-based anchor so the ticker shows the seek position
-    if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(newPos);
+    // Flush old PCM and set the anchor atomically so the 50ms ticker
+    // never reads a temporary 0 and snaps the UI to start.
+    if (window.flushSpotifyBuffers) window.flushSpotifyBuffers(newPos);
 
-    // Flush old PCM so we don't hear stale audio after the seek
-    if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
+    PlaybackState.setProgress(newPos, null);
 
     window.electronAPI.librespotSeek(newPos).catch(() => {});
     return;
@@ -583,6 +589,7 @@ document
 
 // --- Spotify position ticker (sample-based) ---
 let spotifyPositionInterval = null;
+let lastPosSave = 0;
 
 function startSpotifyPositionTicker() {
   if (spotifyPositionInterval) return;
@@ -593,6 +600,13 @@ function startSpotifyPositionTicker() {
       if (pos != null) {
         PlaybackState.positionMs = pos;
         PlaybackState.setProgress(null, null);
+        // Constantly save position so resume always has a fresh value
+        if (window.spPausePosKey && pos > 0 && Date.now() - lastPosSave > 1000) {
+          lastPosSave = Date.now();
+          try {
+            localStorage.setItem(window.spPausePosKey, JSON.stringify({ pos: Math.floor(pos), ts: Date.now() }));
+          } catch (_) {}
+        }
       }
     }
   }, 50);
@@ -656,12 +670,12 @@ window.spotifyPlayTrack = async (uri) => {
 
   PlaybackState.pendingPromise = Promise.resolve();
 
-  // Always flush old PCM so the previous track doesn't bleed in
-  if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
+  // Always flush old PCM so the previous track doesn't bleed in.
+  // Pass 0 so the anchor is set immediately and the ticker never reads temp 0.
+  if (window.flushSpotifyBuffers) window.flushSpotifyBuffers(0);
 
   PlaybackState.setMode('spotify');
   PlaybackState.positionMs = 0;
-  if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(0);
   PlaybackState.lastUserActionTime = Date.now();
   startSpotifyPositionTicker();
 
@@ -674,8 +688,10 @@ window.spotifyPlayTrack = async (uri) => {
   // Set playing state immediately — the user explicitly requested playback.
   PlaybackState.setPlaying(true);
 
-  // Each track gets its own localStorage key for pause-position persistence
-  window.spPausePosKey = 'tvm-pause-' + uri;
+  // Save initial pause state for this track so resume knows what to play.
+  try {
+    localStorage.setItem('tvm-pause-state', JSON.stringify({ uri, pos: 0, ts: Date.now() }));
+  } catch (_) {}
 
   let deviceId;
   try {
@@ -707,7 +723,15 @@ window.spotifyPlayTrack = async (uri) => {
     PlaybackState.isDeviceActive = true;
   }
 
-  const playPromise = window.electronAPI.spotifyPlayTrack(uri, deviceId);
+  // Pass the full in-app queue (from current index onward) so Spotify
+  // can auto-advance when a track finishes instead of getting stuck.
+  const q = window.spotifyQueue;
+  const idx = window.spotifyCurrentIndex;
+  const queueUris = (q && Array.isArray(q) && idx != null && idx >= 0 && idx < q.length)
+    ? q.slice(idx).map(t => t.uri).filter(Boolean)
+    : [uri];
+
+  const playPromise = window.electronAPI.spotifyPlayTrack(uri, deviceId, queueUris);
   PlaybackState.pendingPromise = playPromise;
   let result;
   try {

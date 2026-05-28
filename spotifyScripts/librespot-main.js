@@ -326,7 +326,8 @@ async function spotifyApiSeek(positionMs) {
     await ensureValidToken()
     const url = 'https://api.spotify.com/v1/me/player/seek?position_ms=' + Math.floor(positionMs) + '&device_id=' + encodeURIComponent(deviceId)
     const res = await fetchWithTimeout(url, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + creds.accessToken } })
-    if (res.status === 204 || res.status === 202) {
+    // Spotify sometimes returns 200 with a non-empty body even on success.
+    if (res.status === 204 || res.status === 202 || res.status === 200) {
       return { success: true }
     }
     if (res.status === 404) {
@@ -340,7 +341,7 @@ async function spotifyApiSeek(positionMs) {
   }
 }
 
-async function spotifyApiPlayTrack(trackUri, positionMs) {
+async function spotifyApiPlayTrack(trackUri, positionMs, uris) {
   const creds = getSpotifyCredentialsRaw()
   if (!creds) return { success: false, error: 'Not authenticated' }
   if (!deviceId) return { success: false, error: 'No device ID' }
@@ -348,7 +349,7 @@ async function spotifyApiPlayTrack(trackUri, positionMs) {
     await ensureValidToken()
     const url = 'https://api.spotify.com/v1/me/player/play?device_id=' + encodeURIComponent(deviceId)
     const body = {
-      uris: [trackUri],
+      uris: (uris && Array.isArray(uris) && uris.length > 0) ? uris.slice(0, 50) : [trackUri],
       position_ms: Math.floor(positionMs)
     }
     const res = await fetchWithTimeout(url, {
@@ -395,41 +396,36 @@ function registerLibrespotIpcs(ipcMain) {
     }
   })
 
-  ipcMain.handle('librespot-play', async (_event, positionMs, trackUri) => {
-    // When we know the track URI and a resume position, use the explicit
-    // /v1/me/player/play endpoint with { uris, position_ms } in the body.
-    // This is a single atomic call that starts playback at the exact
-    // position, avoiding the race condition of play-then-seek or
-    // seek-then-play where the track can skip before the seek lands.
+  ipcMain.handle('librespot-play', async (_event, positionMs, trackUri, uris) => {
+    // Always start playback from position 0, then seek to the desired
+    // position. The librespot Connect device silently fails to resume
+    // from non-zero positions after a near-end pause — the API returns
+    // 204 but the device never starts. Starting from 0 wakes the device
+    // reliably, and seeking on an already-active device works correctly.
     if (trackUri && positionMs != null) {
-      let explicitResult = await spotifyApiPlayTrack(trackUri, positionMs)
+      let explicitResult = await spotifyApiPlayTrack(trackUri, 0, uris)
+      console.log('[librespot-main] playTrack(0) result:', JSON.stringify(explicitResult))
       if (explicitResult.error === 'NO_ACTIVE_DEVICE') {
         const reconnected = await reconnectLibrespot()
         if (reconnected) {
-          explicitResult = await spotifyApiPlayTrack(trackUri, positionMs)
+          explicitResult = await spotifyApiPlayTrack(trackUri, 0, uris)
+          console.log('[librespot-main] playTrack(0) after reconnect:', JSON.stringify(explicitResult))
         }
+      }
+      if (explicitResult.success && positionMs > 0) {
+        const seekResult = await spotifyApiSeek(positionMs)
+        console.log('[librespot-main] seek(' + positionMs + ') result:', JSON.stringify(seekResult))
       }
       if (explicitResult.success) return explicitResult
       // Fall through to generic play as a last resort
-      console.warn('[librespot-main] Explicit play with position failed, falling back to generic play:', explicitResult.error)
+      console.warn('[librespot-main] Explicit play failed, falling back to generic play:', explicitResult.error)
     }
 
-    // Fallback: try seek-before-play. If the device is active and paused,
-    // the seek may stick; if not, the play will at least get audio going.
-    if (positionMs != null) {
-      let seekResult = await spotifyApiSeek(positionMs)
-      if (seekResult.error === 'NO_ACTIVE_DEVICE') {
-        const reconnected = await reconnectLibrespot()
-        if (reconnected) {
-          seekResult = await spotifyApiSeek(positionMs)
-        }
-      }
-      // Log seek failure but continue — play might still work
-      if (!seekResult.success) {
-        console.warn('[librespot-main] Pre-play seek failed:', seekResult.error)
-      }
-    }
-
+    // Fallback when we don't have a track URI: just call play without
+    // a pre-seek. Seeking before play causes audible skips because the
+    // device can start playing from the wrong position before the seek
+    // lands. If the position is wrong, the renderer's resume expectation
+    // handler will issue a corrective seek after the playing event arrives.
     let apiResult = await spotifyApiPlayPause('play')
 
     if (apiResult.error === 'NO_ACTIVE_DEVICE') {
@@ -519,10 +515,12 @@ function registerLibrespotIpcs(ipcMain) {
           'Authorization': 'Bearer ' + creds.accessToken
         }
       })
-      if (res.status === 204 || res.status === 202) {
+      // Spotify sometimes returns 200 with a non-empty body even on success.
+      if (res.status === 204 || res.status === 202 || res.status === 200) {
         return { success: true }
       }
       const err = await res.text()
+      console.warn('[librespot-main] seek error:', res.status, err)
       return { success: false, error: `Spotify API error ${res.status}: ${err}` }
     } catch (err) {
       if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }

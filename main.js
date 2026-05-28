@@ -56,6 +56,52 @@ function serveStatic(root) {
       filePath = path.join(root, 'index.html')
     }
 
+    // Temporary test endpoints
+    if (pathname === '/api/test-play') {
+      const wins = BrowserWindow.getAllWindows()
+      if (wins.length > 0) {
+        wins[0].webContents.executeJavaScript(`document.getElementById('btn-play').click()`)
+      }
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end('OK')
+      return
+    }
+    if (pathname === '/api/test-seek') {
+      const wins = BrowserWindow.getAllWindows()
+      if (wins.length > 0) {
+        const q = new URLSearchParams(parsed.query || '')
+        const pos = parseInt(q.get('pos') || '0', 10)
+        wins[0].webContents.executeJavaScript(`
+          if (window.flushSpotifyBuffers) window.flushSpotifyBuffers(${pos});
+          if (window.PlaybackState) window.PlaybackState.setProgress(${pos}, null);
+          if (window.electronAPI?.librespotSeek) window.electronAPI.librespotSeek(${pos}).catch(() => {});
+        `)
+      }
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end('OK')
+      return
+    }
+    if (pathname === '/api/set-pause-state') {
+      const wins = BrowserWindow.getAllWindows()
+      if (wins.length > 0) {
+        const q = new URLSearchParams(parsed.query || '')
+        const pos = parseInt(q.get('pos') || '0', 10)
+        const uri = q.get('uri') || ''
+        const dur = parseInt(q.get('dur') || '0', 10)
+        wins[0].webContents.executeJavaScript(`
+          localStorage.setItem('tvm-pause-state', JSON.stringify({
+            uri: '${uri}',
+            pos: ${pos},
+            durationMs: ${dur},
+            ts: Date.now()
+          }));
+        `)
+      }
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end('OK')
+      return
+    }
+
     const ext = path.extname(filePath).toLowerCase()
 
     fsSync.readFile(filePath, (err, data) => {
@@ -103,6 +149,12 @@ function createWindow(port) {
   } else {
     win.loadFile('index.html')
   }
+
+  // Forward renderer console messages to main process so we can see them
+  // when testing headlessly.
+  win.webContents.on('console-message', (_event, _level, message, _line, _sourceId) => {
+    console.log(`[Renderer] ${message}`)
+  })
 
   return win
 }

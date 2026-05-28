@@ -221,16 +221,22 @@ async function spotifyTransferPlayback(_event, deviceId, shouldPlay = false) {
   return result
 }
 
-async function spotifyPlayTrack(_event, uri, deviceId) {
+async function spotifyPlayTrack(_event, uri, deviceId, uris) {
   if (!uri) {
     return { success: false, error: 'No track URI provided' }
   }
   const query = deviceId ? { device_id: deviceId } : undefined
-  const result = await spotifyPut('/me/player/play', { uris: [uri] }, query)
+  // If a queue URIs array is provided, send the full queue so Spotify
+  // can auto-advance when a track finishes. Otherwise fall back to the
+  // single-track URI. Cap at 50 to stay within Spotify API limits.
+  const playUris = (uris && Array.isArray(uris) && uris.length > 0) ? uris.slice(0, 50) : [uri]
+  // Always start from 0. Omitting position_ms can cause Spotify to carry
+  // over the previous track's position, especially with Connect devices.
+  const result = await spotifyPut('/me/player/play', { uris: playUris, position_ms: 0 }, query)
   if (!result.success && result.error && result.error.includes('404') && reconnectLibrespotFn) {
     const reconnected = await reconnectLibrespotFn()
     if (reconnected) {
-      return spotifyPut('/me/player/play', { uris: [uri] }, query)
+      return spotifyPut('/me/player/play', { uris: playUris, position_ms: 0 }, query)
     }
   }
   return result

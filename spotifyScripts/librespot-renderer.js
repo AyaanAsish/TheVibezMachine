@@ -4,7 +4,7 @@
   // -- State --
   let ctx = null
   let vis = null
-  const MAX_PENDING_CHUNKS = 64
+  const MAX_PENDING_CHUNKS = 128
   let pendingChunks = [] // Array of Float32Arrays (interleaved stereo)
   let chunkReadIndex = 0  // Read position into pendingChunks (avoids O(n) shift)
   let currentChunk = null
@@ -13,8 +13,9 @@
   let spotifySamplesPlayed = 0   // Monotonically increasing count of audio frames output
   let positionAnchorMs = 0       // Position (ms) from the last anchor event
   let positionAnchorSamples = 0  // spotifySamplesPlayed value at the time of that event
-  let anchorInitialized = false  // True once a playing event has set the anchor
+  let anchorSet = false          // True once a playing event has set the anchor
   let cachedConversionBuffer = null // Reusable Float32Array for Int16→Float32
+  let ignorePcmUntil = 0        // Ignore PCM arriving shortly after a flush/seek
 
   // -- Audio graph nodes --
   let scriptNode = null
@@ -22,6 +23,7 @@
 
   const BUFFER_SIZE = 4096 // ~371ms @ 44.1kHz — larger than librespot chunk variance
   const PREBUFFER_CHUNKS = 2  // wait for ~2 chunks before unmuting (~50ms)
+  let prebufferThreshold = PREBUFFER_CHUNKS  // can be raised during resume to absorb wrong-position PCM
   let prebuffered = false
   let lastEventTime = Date.now()
   let pollStaleLogged = false
@@ -38,11 +40,14 @@
   }
 
   function tryUnmute() {
-    if (gainNode && !prebuffered && (pendingChunks.length - chunkReadIndex) >= PREBUFFER_CHUNKS) {
-      prebuffered = true
-      setGain(1)
-      if (window.startSpotifyPositionTicker) window.startSpotifyPositionTicker()
-    }
+    if (!gainNode || prebuffered) return
+    const chunksAvailable = pendingChunks.length - chunkReadIndex
+    if (chunksAvailable < prebufferThreshold) return
+
+    prebuffered = true
+    setGain(1)
+    prebufferThreshold = PREBUFFER_CHUNKS
+    if (window.startSpotifyPositionTicker) window.startSpotifyPositionTicker()
   }
 
   function initGraph() {
@@ -154,12 +159,18 @@
     return q && Array.isArray(q) && q.some(t => t.uri === uri)
   }
 
-  function clearBuffers() {
+  function clearBuffers(shouldResetThreshold = true) {
     pendingChunks.length = 0
     chunkReadIndex = 0
     currentChunk = null
     readIndex = 0
     prebuffered = false
+    if (shouldResetThreshold) {
+      prebufferThreshold = PREBUFFER_CHUNKS
+    }
+    // Ignore PCM for 250ms after a flush. IPC batches drain every 25ms,
+    // and with network/main-process latency, stale PCM can trail by 100-200ms.
+    ignorePcmUntil = Date.now() + 250
   }
 
   function switchToSpotify() {
@@ -202,6 +213,11 @@
       return
     }
 
+    // Drop PCM that arrives within the post-flush ignore window. This prevents
+    // stale in-flight chunks from before a seek/flush from contaminating the
+    // buffer after the flush has completed.
+    if (Date.now() < ignorePcmUntil) return
+
     // Reuse conversion buffer when chunk size matches
     if (!cachedConversionBuffer || cachedConversionBuffer.length !== int16.length) {
       cachedConversionBuffer = new Float32Array(int16.length)
@@ -212,10 +228,12 @@
     }
     // Copy into a new Float32Array for the queue (the cached buffer will be overwritten)
     const chunk = new Float32Array(float32)
-    // Drop oldest chunks when buffer is full (backpressure)
+    // Backpressure: if the buffer is full, drop the oldest unread chunk and
+    // keep the newest. Dropping the newest would starve the reader when it
+    // catches up to the end of the buffer, causing silence. Dropping the oldest
+    // creates a small skip forward but keeps audio flowing.
     if (pendingChunks.length - chunkReadIndex >= MAX_PENDING_CHUNKS) {
-      pendingChunks = pendingChunks.slice(chunkReadIndex + 1)
-      chunkReadIndex = 0
+      chunkReadIndex++
     }
     pendingChunks.push(chunk)
     tryUnmute()
@@ -229,20 +247,34 @@
       lastEventTime = Date.now()
       return
     }
+    const state = event.state || event.type
     const gapSinceLastEvent = Date.now() - lastEventTime
     lastEventTime = Date.now()
-    const state = event.state || event.type
 
     if (state === 'ready') {
       // Device is fully initialized and ready to accept playback commands
       if (window.PlaybackState) {
         window.PlaybackState.isDeviceActive = true
       }
-      console.log('[librespot-renderer] Spotify Connect device is ready')
+      // Device is ready to accept playback commands
       return
     }
 
     if (state === 'playing') {
+      // If we were expecting the next track after end_of_track, check whether
+      // Spotify actually auto-advanced or just restarted the same track.
+      if (window.spotifyExpectingNextTrack && event.uri) {
+        if (event.uri === window.spotifyExpectingNextTrack) {
+          // Device restarted the same track instead of advancing — force next
+          window.spotifyExpectingNextTrack = null
+          if (window.PlaybackState) window.PlaybackState.advance(1)
+          return
+        } else {
+          // Different track — Spotify auto-advanced correctly
+          window.spotifyExpectingNextTrack = null
+        }
+      }
+
       // If this is the first event after a long disconnect, clear stale buffers
       // to prevent audio bleed from before the disconnect.
       if (gapSinceLastEvent > 5000) {
@@ -275,64 +307,64 @@
           window.PlaybackState.setPlaying(true)
         }
         window.PlaybackState.isDeviceActive = true
-        // Only update duration from events — position is handled by the
-        // sample-based ticker which tracks what the user actually hears.
-        // The event's positionMs includes buffer delay and would cause
-        // the progress bar to jump ahead of the audio.
         if (event.durationMs != null) {
           window.PlaybackState.durationMs = event.durationMs
+          // Persist duration so the resume handler can detect track-finished
+          // even when the playing event didn't include it.
+          if (event.uri) {
+            try { localStorage.setItem('tvm-track-duration-' + event.uri, String(event.durationMs)) } catch (_) {}
+          }
         }
 
-        // Remote resume: the user pressed play on their phone, not in-app.
-        // Use the saved in-app position (from the pause event) instead of
-        // the event positionMs, and explicitly seek to correct any drift.
-        const isRemoteResume = !wasPlaying && sinceUserAction >= 1500
-        if (isRemoteResume && window.spPausePosKey) {
-          let savedPos = null
-          try {
-            const raw = localStorage.getItem(window.spPausePosKey)
-            if (raw) {
-              const s = JSON.parse(raw)
-              if (s.pos > 0 && Date.now() - s.ts < 1800000) {
-                savedPos = s.pos
-              }
-            }
-          } catch (_) {}
-
-          if (savedPos != null) {
-            positionAnchorMs = savedPos
-            positionAnchorSamples = spotifySamplesPlayed
-            anchorInitialized = true
-            clearBuffers()
-            setGain(0)
-            prebuffered = false
-            if (window.electronAPI?.librespotSeek) {
-              window.electronAPI.librespotSeek(savedPos).catch(() => {})
-            }
-          }
-        } else if (event.positionMs != null) {
-          // Set position anchor for sample-based tracking.
-          // Only sync anchor on initial play (positionAnchorSamples === 0) or
-          // when the event position differs significantly from the sample-based
-          // position (>2s drift = genuine desync from remote control/seek).
-          // Small differences are just buffer latency between librespot and
-          // the audio output — syncing them would cause the progress bar to
-          // jump ahead of what the user actually hears.
-          if (positionAnchorSamples === 0) {
-            positionAnchorMs = event.positionMs
-            positionAnchorSamples = spotifySamplesPlayed
-            anchorInitialized = true
-          } else {
-            const currentSamplePos = positionAnchorMs + ((spotifySamplesPlayed - positionAnchorSamples) / 44100) * 1000
-            const drift = Math.abs(event.positionMs - currentSamplePos)
-            if (drift > 2000) {
+        // Sync position anchor from the event. When a resume expectation is
+        // pending, only accept the event if its position matches the expected
+        // resume position (within 2s). This blocks wrong-position audio from
+        // playing when the device ignores position_ms and starts from 0.
+        // When no expectation is pending, only update anchor on the first event
+        // after a flush (positionAnchorSamples === 0) or when drift > 2s.
+        // This prevents delayed events from previous playthroughs from corrupting
+        // the position after a restart.
+        if (event.positionMs != null) {
+          const isExpectedTrack = !event.uri || event.uri === window.expectedResumeUri
+          if (window.expectedResumePos != null && isExpectedTrack) {
+            const drift = Math.abs(event.positionMs - window.expectedResumePos)
+            if (drift <= 2000) {
+              // Valid resume position — set anchor and unmute. Do NOT clear
+              // buffers; the prebuffered PCM is already at the correct position
+              // and clearing it would create an audible gap.
+              window.expectedResumePos = null
+              window.expectedResumeUri = null
               positionAnchorMs = event.positionMs
               positionAnchorSamples = spotifySamplesPlayed
-              anchorInitialized = true
+              anchorSet = true
+              tryUnmute()
+            } else {
+              // Device started from the wrong position. Discard the buffered
+              // wrong-position PCM, issue a corrective seek, and stay muted
+              // until the next playing event confirms the seek landed.
+              clearBuffers(false)
+              ignorePcmUntil = Date.now() + 250
+              if (window.electronAPI?.librespotSeek) {
+                window.electronAPI.librespotSeek(window.expectedResumePos).catch(() => {})
+              }
+            }
+          } else {
+            // No expectation or different track — only sync anchor on the
+            // first event after flush. After that, trust the sample-based
+            // ticker and only update anchor from user-initiated seeks (which
+            // call flushSpotifyBuffers and reset anchorSet). This prevents
+            // delayed events from previous playthroughs from corrupting the
+            // position after a restart.
+            window.expectedResumePos = null
+            window.expectedResumeUri = null
+            if (!anchorSet) {
+              positionAnchorMs = event.positionMs
+              positionAnchorSamples = spotifySamplesPlayed
+              anchorSet = true
+              tryUnmute()
             }
           }
         }
-
       }
 
       // If we already have freshly-buffered data (after a seek or initial load),
@@ -355,48 +387,99 @@
       if (!isSpotifyActive) window.startSpotifyAudio()
     } else if (state === 'paused') {
       if (window.PlaybackState) {
-        // Ignore stale 'paused' events if the user recently clicked play —
-        // clearBuffers/setGain would kill audio that should be playing.
         const sinceUserAction = Date.now() - (window.PlaybackState.lastUserActionTime || 0)
-        if (sinceUserAction < 1500 && window.PlaybackState.isPlaying) {
+        // Ignore stale 'paused' events that arrive shortly after a resume click
+        // while audio is still playing. A genuine pause click sets isPlaying=false
+        // first, so this guard only blocks stale events during active playback.
+        const samplesSinceResume = spotifySamplesPlayed
+        if (window.PlaybackState.isPlaying && sinceUserAction < 15000 && samplesSinceResume < 100000) {
           return
         }
 
-        // Save the current in-app position so a remote resume can seek to it.
-        // The in-app position is based on samples actually played, which is
-        // more accurate than the event positionMs (which includes buffer delay).
+        // Save the current track + position + duration into a unified pause state
+        // key. On resume we replay this exact track from this exact position.
+        // Duration is needed to detect if the track finished while we were paused.
         const currentPos = window.getSpotifyPosition()
-        if (currentPos != null && window.spPausePosKey) {
-          try { localStorage.setItem(window.spPausePosKey, JSON.stringify({ pos: Math.floor(currentPos), ts: Date.now() })); } catch (_) {}
+        const currentUri = window.PlaybackState.lastTrackUri || window.spPausePosKey?.replace('tvm-pause-', '')
+        const currentDuration = window.PlaybackState.durationMs || 0
+        if (currentPos != null && currentUri) {
+          try {
+            localStorage.setItem('tvm-pause-state', JSON.stringify({
+              uri: currentUri,
+              pos: Math.floor(currentPos),
+              durationMs: currentDuration,
+              ts: Date.now()
+            }))
+          } catch (_) {}
         }
 
         clearBuffers()
         setGain(0)
         prebuffered = false
+        // Drop trailing PCM that may still be in-flight from before the pause.
+        ignorePcmUntil = Date.now() + 200
 
         window.PlaybackState.setPlaying(false)
         window.PlaybackState.setProgress(null, null)
       }
     } else if (state === 'end_of_track') {
       const wasPlaying = window.PlaybackState?.isPlaying || false
+      // After a resume, flushSpotifyBuffers resets spotifySamplesPlayed to 0.
+      // If end_of_track arrives shortly after a resume, it's a stale/delayed
+      // event from the track's previous playthrough (which finished while we
+      // were paused). Completely ignore it — don't pause, don't reset progress,
+      // don't clear buffers. Otherwise the UI would snap to 0 and audio would
+      // cut out within seconds of resuming a near-end track.
+      const samplesSinceResume = spotifySamplesPlayed
+      const positionMs = window.PlaybackState?.positionMs ?? 0
+      const durationMs = window.PlaybackState?.durationMs ?? 0
+      const nearEnd = durationMs > 0 && (durationMs - positionMs) < 10000
+      const prematureEndOfTrack = samplesSinceResume < 300000 && !nearEnd
+      if (prematureEndOfTrack) {
+        return
+      }
+
+      // Clear pause state so a subsequent play click doesn't resume from an
+      // old position on a track that has already finished.
+      const finishedUri = window.PlaybackState?.lastTrackUri || event.uri
+      try {
+        localStorage.removeItem('tvm-pause-state')
+        if (finishedUri) localStorage.removeItem('tvm-pause-' + finishedUri)
+      } catch (_) {}
+
+      // If the track genuinely finished, expect Spotify to auto-advance.
+      // If it doesn't (device bug), manually advance after a short delay.
+      window.spotifyExpectingNextTrack = finishedUri
+      setTimeout(() => {
+        if (window.spotifyExpectingNextTrack === finishedUri) {
+          window.spotifyExpectingNextTrack = null
+          if (window.PlaybackState && window.PlaybackState.mode === 'spotify') {
+            const currentUri = window.PlaybackState.lastTrackUri
+            if (!currentUri || currentUri === finishedUri) {
+              window.PlaybackState.advance(1)
+            }
+          }
+        }
+      }, 2500)
+
       if (window.PlaybackState) {
         window.PlaybackState.setPlaying(false)
         window.PlaybackState.setProgress(0, null)
       }
       clearBuffers()
       setGain(0)
-      if (wasPlaying) {
-        // Only auto-advance if we have an in-app queue. For remote playback
-        // (track not in queue), let Spotify manage its own queue advancement.
-        // Calling librespotNext() for remote tracks causes double-skipping
-        // because Spotify may have already advanced to the next track.
-        const queue = window.spotifyQueue
-        const idx = window.spotifyCurrentIndex
-        if (window.PlaybackState && queue && Array.isArray(queue) && idx != null && idx + 1 < queue.length && queue[idx + 1]?.uri) {
-          window.PlaybackState.advance(1)
-        }
-      }
+      prebuffered = false
+      // Drop trailing PCM that may still be in-flight from before the track ended.
+      ignorePcmUntil = Date.now() + 200
+      window.expectedResumePos = null
+      window.expectedResumeUri = null
     } else if (state === 'stopped') {
+      const sinceUserAction = window.PlaybackState
+        ? Date.now() - (window.PlaybackState.lastUserActionTime || 0)
+        : Infinity
+      if (sinceUserAction < 15000 && window.PlaybackState?.isPlaying) {
+        return
+      }
       if (window.PlaybackState) {
         window.PlaybackState.setPlaying(false)
         window.PlaybackState.isDeviceActive = false
@@ -404,6 +487,10 @@
       clearBuffers()
       setGain(0)
       prebuffered = false
+      // Drop trailing PCM that may still be in-flight from before the stop.
+      ignorePcmUntil = Date.now() + 200
+      window.expectedResumePos = null
+      window.expectedResumeUri = null
     } else if (state === 'volume' || event.volume != null) {
       window.setSpotifyVolume(event.volume ?? 1.0)
     }
@@ -420,6 +507,7 @@
         window.PlaybackState.setProgress(0, null)
         positionAnchorMs = 0
         positionAnchorSamples = spotifySamplesPlayed
+        anchorSet = true
       }
     }
   }
@@ -491,6 +579,9 @@
       if (data.item) {
         if (data.item.duration_ms != null) {
           window.PlaybackState.durationMs = data.item.duration_ms
+          if (data.item.uri) {
+            try { localStorage.setItem('tvm-track-duration-' + data.item.uri, String(data.item.duration_ms)) } catch (_) {}
+          }
         }
         // Only update track info when the track actually changed — avoids
         // reloading the album cover image every 5s from repeated polls.
@@ -512,6 +603,7 @@
             window.PlaybackState.setProgress(0, null)
             positionAnchorMs = 0
             positionAnchorSamples = spotifySamplesPlayed
+            anchorSet = true
           }
         }
 
@@ -556,24 +648,39 @@
 
     isSpotifyActive = true
     spotifySamplesPlayed = 0
-    if (!anchorInitialized) {
-      positionAnchorMs = 0
-      positionAnchorSamples = 0
-    }
+    // Always reset the anchor when starting audio fresh. Stale anchor values
+    // from a previous track/session would corrupt position tracking for the
+    // new playback stream.
+    positionAnchorMs = 0
+    positionAnchorSamples = 0
+    anchorSet = false
     connectVisualizer()
   }
 
   window.stopSpotifyAudio = () => {
     if (!isSpotifyActive) return
     isSpotifyActive = false
-    anchorInitialized = false
     clearBuffers()
     destroyGraph()
   }
 
-  window.flushSpotifyBuffers = () => {
-    clearBuffers()
+  window.flushSpotifyBuffers = (targetPositionMs = null, threshold = null) => {
+    // Pass false so the caller's prebuffer threshold (e.g. 8 during resume)
+    // is preserved rather than being reset to the default of 2.
+    clearBuffers(false)
     setGain(0)
+    // Reset sample counter and anchor so position tracking starts fresh
+    // after a seek/resume. Stale anchor values corrupt the progress bar
+    // and the resume expectation guard calculations.
+    spotifySamplesPlayed = 0
+    // If a target position is provided (e.g. resume), use it immediately so
+    // the 50ms ticker can't read a temporary 0 and snap the UI to start.
+    positionAnchorMs = targetPositionMs != null ? targetPositionMs : 0
+    positionAnchorSamples = 0
+    anchorSet = false
+    // Set threshold atomically with the flush so a PCM chunk that arrives
+    // between flush and threshold-set uses the correct value.
+    if (threshold != null) prebufferThreshold = threshold
   }
 
   window.setSpotifyVolume = (volume) => {
@@ -590,7 +697,19 @@
   window.resetSpotifyPositionAnchor = (positionMs) => {
     positionAnchorMs = positionMs
     positionAnchorSamples = spotifySamplesPlayed
+    anchorSet = true
   }
+
+  window.trySpotifyUnmute = tryUnmute
+
+  window.setPrebufferThreshold = (n) => {
+    prebufferThreshold = n
+  }
+
+  window.resetPrebufferThreshold = () => {
+    prebufferThreshold = PREBUFFER_CHUNKS
+  }
+
 
   // -- Deferred init: wait for AudioContext --
   function tryInit() {

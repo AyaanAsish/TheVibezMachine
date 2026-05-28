@@ -128,18 +128,15 @@ const PlaybackState = {
           }
           window.spotifyCurrentIndex = newIdx;
           await window.spotifyPlayTrack(q[newIdx].uri);
-        } else if (q && q.length > 0) {
-          // Queue exists but we're at the end (or beginning for prev).
-          // Only call next/prev if we have an in-app queue — for remote
-          // playback (empty/unknown queue), let Spotify manage its own queue.
+        } else {
+          // No in-app queue, track not in queue, or at boundary.
+          // Fall back to Spotify API next/prev so remote playback works too.
           if (delta > 0) {
             await window.electronAPI.librespotNext();
           } else {
             await window.electronAPI.librespotPrev();
           }
         }
-        // If no queue at all (pure remote playback), do nothing —
-        // Spotify will advance on its own via the Connect session.
       } else {
         const activeQueue = getActiveQueue();
         const newIdx = current + delta;

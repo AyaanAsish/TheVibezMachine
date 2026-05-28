@@ -462,6 +462,22 @@
         }
       }, 2500)
 
+      // Proactive reconnection: the native addon degrades over multiple tracks.
+      // The gap between tracks is the safest moment to restart it, because no
+      // audio is flowing and Spotify hasn't started the next track yet.
+      // Use the gap computed at the top of onSpotifyEvent (before lastEventTime
+      // was updated) so we know how stale events were during the track.
+      if (gapSinceLastEvent > 8000) {
+        const now = Date.now()
+        if (now - lastReconnectAttempt > RECONNECT_COOLDOWN_MS) {
+          lastReconnectAttempt = now
+          console.warn('[librespot-renderer] Events stale during track end — proactive reconnection')
+          if (window.electronAPI?.reconnectLibrespot) {
+            window.electronAPI.reconnectLibrespot()
+          }
+        }
+      }
+
       if (window.PlaybackState) {
         window.PlaybackState.setPlaying(false)
         window.PlaybackState.setProgress(0, null)
@@ -531,14 +547,15 @@
       pollStaleLogged = false
     }
 
-    // Auto-reconnect if no librespot events for 30s and we're in Spotify mode
-    // with an active device. This handles the case where the Connect session
-    // silently drops (network timeout, Spotify deregistration, etc.)
-    if (eventAge > 20000 && window.PlaybackState?.isDeviceActive) {
+    // Auto-reconnect if no librespot events for 20s, BUT only when we're
+    // not actively playing. Reconnecting during playback shuts down the native
+    // host and causes audible drops / NO_ACTIVE_DEVICE cascades. Instead we
+    // reconnect opportunistically between tracks (end_of_track) or when idle.
+    if (eventAge > 20000 && window.PlaybackState?.isDeviceActive && !window.PlaybackState?.isPlaying) {
       const now = Date.now()
       if (now - lastReconnectAttempt > RECONNECT_COOLDOWN_MS) {
         lastReconnectAttempt = now
-        console.warn('[librespot-renderer] No events for 30s — attempting reconnection')
+        console.warn('[librespot-renderer] No events for 20s while idle — attempting reconnection')
         if (window.electronAPI?.reconnectLibrespot) {
           window.electronAPI.reconnectLibrespot()
         }

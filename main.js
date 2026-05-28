@@ -1,10 +1,14 @@
 const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron')
-const fs = require('fs')
+const fs = require('fs/promises')
+const fsSync = require('fs')
 const path = require('path')
 const http = require('http')
 const url = require('url')
-const { registerSpotifyIpcs, onAuthSuccess } = require('./spotifyScripts/spotifyAuth')
-const { registerLibrespotIpcs, initLibrespot, stopLibrespot } = require('./spotifyScripts/librespot-main')
+const { registerSpotifyIpcs, onAuthSuccess, setReconnectFn } = require('./spotifyScripts/spotifyAuth')
+const { registerLibrespotIpcs, initLibrespot, stopLibrespot, reconnectLibrespot, clearReconnectCooldown } = require('./spotifyScripts/librespot-main')
+
+// Set DB path before requiring db.js so it uses the proper userData directory
+process.env.DB_PATH = path.join(app.getPath('userData'), 'library.db')
 const libraryDb = require('./DB/db')
 const { AUDIO_EXTENSIONS } = require('./shared/constants')
 
@@ -42,7 +46,8 @@ function serveStatic(root) {
     }
 
     try {
-      if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+      const stat = fsSync.statSync(filePath)
+      if (stat.isDirectory()) {
         filePath = path.join(filePath, 'index.html')
       }
     } catch (_e) {}
@@ -51,9 +56,55 @@ function serveStatic(root) {
       filePath = path.join(root, 'index.html')
     }
 
+    // Temporary test endpoints
+    if (pathname === '/api/test-play') {
+      const wins = BrowserWindow.getAllWindows()
+      if (wins.length > 0) {
+        wins[0].webContents.executeJavaScript(`document.getElementById('btn-play').click()`)
+      }
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end('OK')
+      return
+    }
+    if (pathname === '/api/test-seek') {
+      const wins = BrowserWindow.getAllWindows()
+      if (wins.length > 0) {
+        const q = new URLSearchParams(parsed.query || '')
+        const pos = parseInt(q.get('pos') || '0', 10)
+        wins[0].webContents.executeJavaScript(`
+          if (window.flushSpotifyBuffers) window.flushSpotifyBuffers(${pos});
+          if (window.PlaybackState) window.PlaybackState.setProgress(${pos}, null);
+          if (window.electronAPI?.librespotSeek) window.electronAPI.librespotSeek(${pos}).catch(() => {});
+        `)
+      }
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end('OK')
+      return
+    }
+    if (pathname === '/api/set-pause-state') {
+      const wins = BrowserWindow.getAllWindows()
+      if (wins.length > 0) {
+        const q = new URLSearchParams(parsed.query || '')
+        const pos = parseInt(q.get('pos') || '0', 10)
+        const uri = q.get('uri') || ''
+        const dur = parseInt(q.get('dur') || '0', 10)
+        wins[0].webContents.executeJavaScript(`
+          localStorage.setItem('tvm-pause-state', JSON.stringify({
+            uri: '${uri}',
+            pos: ${pos},
+            durationMs: ${dur},
+            ts: Date.now()
+          }));
+        `)
+      }
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end('OK')
+      return
+    }
+
     const ext = path.extname(filePath).toLowerCase()
 
-    fs.readFile(filePath, (err, data) => {
+    fsSync.readFile(filePath, (err, data) => {
       if (err) {
         res.writeHead(err.code === 'ENOENT' ? 404 : 500)
         res.end(err.code === 'ENOENT' ? 'Not found' : 'Server error')
@@ -98,6 +149,12 @@ function createWindow(port) {
   } else {
     win.loadFile('index.html')
   }
+
+  // Forward renderer console messages to main process so we can see them
+  // when testing headlessly.
+  win.webContents.on('console-message', (_event, _level, message, _line, _sourceId) => {
+    console.log(`[Renderer] ${message}`)
+  })
 
   return win
 }
@@ -147,7 +204,9 @@ app.whenReady().then(async () => {
     }
   } catch (err) {
     console.error('[main] Failed to start local server:', err)
-    createWindow(null)
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow(null)
+    }
   }
 })
 
@@ -163,13 +222,14 @@ ipcMain.handle('open-folder', async () => {
   if (result.canceled || !result.filePaths.length) return null
 
   const folderPath = result.filePaths[0]
-  const files = fs.readdirSync(folderPath).map(f => path.join(folderPath, f))
+  const entries = await fs.readdir(folderPath, { withFileTypes: true })
+  const files = entries.map(e => path.join(folderPath, e.name))
   return { folder: folderPath, files }
 })
 
 ipcMain.handle('scan-folder', async (_event, folderPath, _userTriggered) => {
   try {
-    const entries = fs.readdirSync(folderPath, { withFileTypes: true })
+    const entries = await fs.readdir(folderPath, { withFileTypes: true })
     const imageExt = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
 
     const folders = []
@@ -217,7 +277,10 @@ ipcMain.handle('db-clear-library', () => {
 registerSpotifyIpcs(ipcMain)
 registerLibrespotIpcs(ipcMain)
 
+setReconnectFn(reconnectLibrespot)
+
 onAuthSuccess(() => {
   const wins = BrowserWindow.getAllWindows()
   if (wins.length > 0) initLibrespot(wins[0])
+  clearReconnectCooldown()
 })

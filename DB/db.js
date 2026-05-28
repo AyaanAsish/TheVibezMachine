@@ -2,10 +2,11 @@ const Database = require('better-sqlite3')
 const path = require('path')
 const fs = require('fs')
 
-const DB_DIR = __dirname
-if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR)
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'library.db')
+const DB_DIR = path.dirname(DB_PATH)
+if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true })
 
-const db = new Database(path.join(DB_DIR, 'library.db'))
+const db = new Database(DB_PATH)
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS library_paths (

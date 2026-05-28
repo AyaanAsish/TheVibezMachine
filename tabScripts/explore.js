@@ -8,6 +8,13 @@
   const dropdownResults = dropdown ? dropdown.querySelector('.dropdown-results') : null;
   const tracklistContainer = document.querySelector('#explore .library-tracklist');
   const albumInfoContainer = document.querySelector('#explore .library-album-info');
+  const searchContainer = document.getElementById('explore-search-container');
+
+  function escapeHtml(str) {
+    const d = document.createElement('div')
+    d.textContent = str
+    return d.innerHTML
+  }
 
   let credentials = null;
   let savedAlbums = [];
@@ -20,7 +27,8 @@
   let currentHoverScale = 1;
   const HOVER_SCALE = 1.06;
   const LERP_FACTOR = 0.12;
-  let isFetchingSaved = false;
+  let isFetchingAlbums = false;
+  let isFetchingPlaylists = false;
 
   const TILE_W = 160;
   const TILE_H = 210;
@@ -36,9 +44,9 @@
     }
   }
 
-  async function fetchSavedItems(endpoint, mapper) {
-    if (!credentials || isFetchingSaved) return [];
-    isFetchingSaved = true;
+  async function fetchSavedItems(endpoint, mapper, fetchFlag, setFetchFlag) {
+    if (!credentials || fetchFlag) return [];
+    setFetchFlag(true);
     try {
       const result = await window.electronAPI.spotifyApi(endpoint);
       if (!result.success) {
@@ -55,7 +63,7 @@
       console.error('Failed to fetch saved items:', e);
       return [];
     } finally {
-      isFetchingSaved = false;
+      setFetchFlag(false);
       needsRedraw = true;
     }
   }
@@ -64,22 +72,22 @@
     savedAlbums = await fetchSavedItems('/me/albums?limit=50', item => ({
       name: item.album.name,
       artist: item.album.artists.map(a => a.name).join(', '),
-      image: item.album.images[0]?.url,
+      image: item.album.images?.[0]?.url,
       uri: item.album.uri,
       id: item.album.id,
       type: 'Saved Album'
-    }));
+    }), isFetchingAlbums, (v) => { isFetchingAlbums = v; });
   }
 
   async function fetchSavedPlaylists() {
     savedPlaylists = await fetchSavedItems('/me/playlists?limit=50', item => ({
       name: item.name,
       artist: item.owner?.display_name || '',
-      image: item.images[0]?.url,
+      image: item.images?.[0]?.url,
       uri: item.uri,
       id: item.id,
       type: 'Saved Playlist'
-    }));
+    }), isFetchingPlaylists, (v) => { isFetchingPlaylists = v; });
   }
 
   function showDropdown() {
@@ -177,8 +185,6 @@
       }
 
       apiError = null;
-      if (allItems.length > 0) {
-      }
 
       const tracks = allItems.map(item => {
         const track = item.item || item.track;
@@ -209,36 +215,11 @@
     }
   }
 
-  async function loadArtistTopTracks(artistId, name, image) {
-    if (!credentials) return;
-    try {
-      const result = await window.electronAPI.spotifyApi('/artists/' + artistId + '/top-tracks?market=US');
-      if (!result.success) {
-        console.error('[explore] Artist top tracks API error:', result.error);
-        renderTracklist([], name, '', image, 'Error loading artist: ' + result.error);
-        return;
-      }
-      apiError = null;
-      const tracks = (result.data.tracks || []).map(t => ({
-        name: t.name,
-        artists: t.artists || [],
-        uri: t.uri,
-        duration_ms: t.duration_ms,
-        albumImage: t.album?.images?.[0]?.url || image
-      }));
-      renderTracklist(tracks, name, '', image);
-    } catch (e) {
-      console.error('[explore] Failed to load artist top tracks:', e);
-      renderTracklist([], name, '', image, 'Error: ' + e.message);
-    }
-  }
-
   function renderTracklist(tracks, name, artist, image, errorMsg) {
     if (!tracklistContainer || !albumInfoContainer) return;
 
     showTracklist();
     window.currentPlaylistCover = image || '';
-    if (window.updatePlayerCover) window.updatePlayerCover(image || '');
 
     tracklistContainer.innerHTML = '';
     albumInfoContainer.innerHTML = '';
@@ -265,16 +246,16 @@
     infoCard.className = 'album-info-card';
     if (image) {
       infoCard.innerHTML = `
-        <img src="${image}" alt="${name}" class="album-cover-large">
-        <div class="album-name">${name}</div>
-        <div class="album-artist">${artist ? artist + ' · ' : ''}${tracks.length} tracks</div>
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" class="album-cover-large">
+        <div class="album-name">${escapeHtml(name)}</div>
+        <div class="album-artist">${escapeHtml(artist ? artist + ' · ' : '')}${tracks.length} tracks</div>
         <button class="playlist-play-btn">Play</button>
       `;
     } else {
       infoCard.innerHTML = `
         <div class="album-cover-large no-cover">🎵</div>
-        <div class="album-name">${name}</div>
-        <div class="album-artist">${artist ? artist + ' · ' : ''}${tracks.length} tracks</div>
+        <div class="album-name">${escapeHtml(name)}</div>
+        <div class="album-artist">${escapeHtml(artist ? artist + ' · ' : '')}${tracks.length} tracks</div>
         <button class="playlist-play-btn">Play</button>
       `;
     }
@@ -286,8 +267,9 @@
       e.stopPropagation();
       const firstIdx = tracks.findIndex(t => t.uri);
       if (firstIdx >= 0) {
-        window.spotifyQueue = tracks;
         window.spotifyCurrentIndex = firstIdx;
+        const firstCover = tracks[firstIdx].albumImage || image || '';
+        if (window.updatePlayerCover) window.updatePlayerCover(firstCover);
         window.spotifyPlayTrack(tracks[firstIdx].uri);
       } else {
         console.warn('[explore] No playable tracks in this list');
@@ -300,14 +282,12 @@
     // Tracklist items
     tracks.forEach((track, index) => {
       const trackName = track.name || 'Unknown';
-      const trackArtists = track.artists ? track.artists.map(a => a.name).join(', ') : '';
-      const duration = fmtMs(track.duration_ms || 0);
       const uri = track.uri || '';
       const albumImg = track.albumImage;
 
       const item = document.createElement('div');
       item.className = 'tracklist-item';
-      item.innerHTML = `<span class="track-number">${index + 1}</span><span class="track-title">${trackName}</span>`;
+      item.innerHTML = `<span class="track-number">${index + 1}</span><span class="track-title">${escapeHtml(trackName)}</span>`;
       item.addEventListener('click', () => {
         if (uri) {
           window.spotifyCurrentIndex = index;
@@ -325,10 +305,6 @@
     });
   }
 
-  function fmtMs(ms) {
-    return window.fmt ? window.fmt(Math.floor(ms / 1000)) : '0:00'
-  }
-
   function renderDropdown(results) {
     if (!dropdownResults) return;
     dropdownResults.innerHTML = '';
@@ -343,10 +319,13 @@
     results.forEach(item => {
       const el = document.createElement('div');
       el.className = 'dropdown-item';
-      const img = document.createElement('img');
-      img.src = item.image || '';
-      img.alt = '';
-      img.onerror = () => { img.classList.add('img-error'); };
+      if (item.image) {
+        const img = document.createElement('img');
+        img.src = item.image;
+        img.alt = '';
+        img.onerror = () => { img.classList.add('img-error'); };
+        el.appendChild(img);
+      }
       const info = document.createElement('div');
       info.className = 'dropdown-info';
       const name = document.createElement('div');
@@ -357,7 +336,6 @@
       meta.textContent = (item.artist ? item.artist + ' · ' : '') + item.type;
       info.appendChild(name);
       info.appendChild(meta);
-      el.appendChild(img);
       el.appendChild(info);
       el.addEventListener('click', () => {
         if (item.type === 'Track') {
@@ -369,9 +347,6 @@
         } else if (item.type === 'Album') {
           const id = item.uri.replace('spotify:album:', '');
           loadAlbumTracks(id, item.name, item.artist, item.image);
-        } else if (item.type === 'Artist') {
-          const id = item.uri.replace('spotify:artist:', '');
-          loadArtistTopTracks(id, item.name, item.image);
         }
         hideDropdown();
       });
@@ -401,7 +376,7 @@
         results.push({
           name: a.name,
           artist: a.artists.map(ar => ar.name).join(', '),
-          image: a.images[0]?.url,
+          image: a.images?.[0]?.url,
           uri: a.uri,
           id: a.id,
           type: 'Album'
@@ -411,7 +386,7 @@
         results.push({
           name: t.name,
           artist: t.artists.map(ar => ar.name).join(', '),
-          image: t.album.images[0]?.url,
+          image: t.album?.images?.[0]?.url,
           uri: t.uri,
           id: t.id,
           type: 'Track'
@@ -648,7 +623,6 @@
     if (hoveredItem !== prevHovered) {
       canvas.style.cursor = hoveredItem ? 'pointer' : 'default';
       needsRedraw = true;
-      draw();
     }
   });
 
@@ -657,7 +631,6 @@
       hoveredItem = null;
       canvas.style.cursor = 'default';
       needsRedraw = true;
-      draw();
     }
   });
 
@@ -672,8 +645,7 @@
   });
   document.addEventListener('click', (e) => {
     if (!dropdown) return;
-    const container = document.getElementById('explore-search-container');
-    if (container && !container.contains(e.target)) {
+    if (searchContainer && !searchContainer.contains(e.target)) {
       hideDropdown();
     }
   });
@@ -697,7 +669,7 @@
         });
       }
     });
-    tabObserver.observe(exploreTab, { attributes: true });
+    tabObserver.observe(exploreTab, { attributes: true, attributeFilter: ['class'] });
   }
 
   function animate() {
@@ -713,7 +685,7 @@
   })();
 
   window.updateSpotifyTracklistHighlight = () => {
-    const idx = window.spotifyCurrentIndex || 0;
+    const idx = window.spotifyCurrentIndex ?? 0;
     if (window.highlightTracklistItems) {
       window.highlightTracklistItems('#explore .library-tracklist .tracklist-item', idx)
     }

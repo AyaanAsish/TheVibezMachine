@@ -18,7 +18,6 @@ function loadTokens() {
         refreshToken: data.refreshToken,
         tokenExpiry: data.tokenExpiry
       }
-      console.log('[spotifyAuth] Loaded tokens from disk')
     }
   } catch (e) {
     console.error('[spotifyAuth] Failed to load tokens:', e.message)
@@ -133,6 +132,9 @@ async function spotifyApi(_event, endpoint) {
   if (!spotifyCredentials) {
     return { success: false, error: 'Not authenticated with Spotify' }
   }
+  if (!endpoint) {
+    return { success: false, error: 'No API endpoint provided' }
+  }
 
   try {
     await ensureValidToken()
@@ -150,19 +152,21 @@ async function spotifyApi(_event, endpoint) {
   }
 }
 
-async function spotifyTransferPlayback(_event, deviceId, shouldPlay = false) {
+async function spotifyPut(endpoint, body, query) {
   if (!spotifyCredentials) {
     return { success: false, error: 'Not authenticated with Spotify' }
   }
   try {
     await ensureValidToken()
-    const res = await fetch('https://api.spotify.com/v1/me/player', {
+    let url = 'https://api.spotify.com/v1' + endpoint
+    if (query) url += '?' + new URLSearchParams(query).toString()
+    const res = await fetch(url, {
       method: 'PUT',
       headers: {
         'Authorization': 'Bearer ' + spotifyCredentials.accessToken,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ device_ids: [deviceId], play: shouldPlay })
+      body: body ? JSON.stringify(body) : undefined
     })
     if (res.status === 204 || res.status === 202) {
       return { success: true }
@@ -174,29 +178,19 @@ async function spotifyTransferPlayback(_event, deviceId, shouldPlay = false) {
   }
 }
 
+async function spotifyTransferPlayback(_event, deviceId, shouldPlay = false) {
+  if (!deviceId) {
+    return { success: false, error: 'No device ID provided' }
+  }
+  return spotifyPut('/me/player', { device_ids: [deviceId], play: shouldPlay })
+}
+
 async function spotifyPlayTrack(_event, uri, deviceId) {
-  if (!spotifyCredentials) {
-    return { success: false, error: 'Not authenticated with Spotify' }
+  if (!uri) {
+    return { success: false, error: 'No track URI provided' }
   }
-  try {
-    await ensureValidToken()
-    const url = 'https://api.spotify.com/v1/me/player/play' + (deviceId ? '?device_id=' + encodeURIComponent(deviceId) : '')
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': 'Bearer ' + spotifyCredentials.accessToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ uris: [uri] })
-    })
-    if (res.status === 204 || res.status === 202) {
-      return { success: true }
-    }
-    const err = await res.text()
-    return { success: false, error: `Spotify API error ${res.status}: ${err}` }
-  } catch (err) {
-    return { success: false, error: err.message }
-  }
+  const query = deviceId ? { device_id: deviceId } : undefined
+  return spotifyPut('/me/player/play', { uris: [uri] }, query)
 }
 
 async function spotifyAuth(_event, clientId, clientSecret) {
@@ -292,7 +286,6 @@ async function spotifyAuth(_event, clientId, clientSecret) {
 
     spotifyCallbackServer = server
     server.listen(8080, '127.0.0.1', () => {
-      console.log('Spotify callback server listening on port 8080')
     })
 
     setTimeout(() => {
@@ -342,4 +335,4 @@ function registerSpotifyIpcs(ipcMain) {
   ipcMain.handle('spotify-disconnect', spotifyDisconnect)
 }
 
-module.exports = { registerSpotifyIpcs, getSpotifyCredentialsRaw, onAuthSuccess, ensureValidToken }
+module.exports = { registerSpotifyIpcs, getSpotifyCredentialsRaw, onAuthSuccess, ensureValidToken, spotifyPut }

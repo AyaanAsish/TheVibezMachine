@@ -6,7 +6,7 @@ debug.js
 CLAUDE.md
 INSTRUNCTIONS.md
 /idea
-.DS_Store
+**/.DS_Store
 .spotify-auth.json
 DB/*.db
 vendor/node-librespot/node_modules/

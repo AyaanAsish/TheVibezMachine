@@ -1,15 +1,157 @@
 // At the top of player.js
 const audio = new Audio();
-audio.crossOrigin = "anonymous";
 let queue = [];
 let current = 0;
 let audioSource = null;
+let localAudioConnected = false;
+
+// Cache frequently-accessed DOM elements
+const btnPlay = document.getElementById('btn-play');
+const progressFillEl = document.getElementById('progress-fill');
+const currentTimeEl = document.getElementById('current-time');
+const durationEl = document.getElementById('duration');
+const toastEl = document.getElementById('toast');
+const btnMute = document.getElementById('btn-mute');
+const trackNameEl = document.getElementById('track-name');
+const pathInput = document.getElementById('path');
 
 function updatePlayerCover(url) {
-  const img = document.getElementById('player-cover');
-  if (img) img.src = url || '';
+  const container = document.getElementById('player-cover');
+  if (!container) return;
+  if (url) {
+    container.innerHTML = `<img src="${url}" alt="Album cover" />`;
+  } else {
+    container.innerHTML = '<span class="no-cover">🎵</span>';
+  }
 }
 window.updatePlayerCover = updatePlayerCover;
+
+// --- Unified Playback State ---
+const PlaybackState = {
+  mode: null, // 'local' | 'spotify' | null
+  isPlaying: false,
+  positionMs: 0,
+  durationMs: 0,
+  pendingPromise: null,
+  lastSwitchTime: 0,
+  advanceLock: false,
+  previousVolume: 1,
+  isDeviceActive: false,
+  lastUserActionTime: 0,
+
+  setMode(mode) {
+    if (this.mode === mode) return;
+    const oldMode = this.mode;
+    this.mode = mode;
+    this.lastSwitchTime = Date.now();
+
+    if (oldMode === 'spotify' && mode !== 'spotify') {
+      this.isDeviceActive = false;
+      if (window.stopSpotifyAudio) window.stopSpotifyAudio();
+      if (window.electronAPI?.librespotPause) {
+        window.electronAPI.librespotPause().catch(() => {});
+      }
+    }
+    if (oldMode === 'local' && mode !== 'local') {
+      audio.pause();
+      audio.src = '';
+      audio.load();
+      if (window.disconnectLocalAudio) window.disconnectLocalAudio();
+    }
+
+    window.isSpotifyPlayback = mode === 'spotify';
+  },
+
+  setPlaying(playing) {
+    this.isPlaying = playing;
+    if (btnPlay) {
+      btnPlay.classList.toggle('paused', playing);
+    }
+  },
+
+  setTrackInfo(name, cover) {
+    if (trackNameEl) {
+      trackNameEl.textContent = name || 'No track loaded';
+      if (trackNameEl.scrollWidth > trackNameEl.clientWidth) {
+        trackNameEl.classList.add('scroll-animation');
+      } else {
+        trackNameEl.classList.remove('scroll-animation');
+      }
+    }
+    updatePlayerCover(cover !== undefined ? cover : window.currentPlaylistCover || '');
+  },
+
+  setProgress(positionMs, durationMs) {
+    if (durationMs != null) this.durationMs = durationMs;
+    if (positionMs != null) this.positionMs = positionMs;
+    const dur = this.durationMs || 1;
+    const pct = dur > 0 ? (this.positionMs / dur) * 100 : 0;
+    if (progressFillEl) progressFillEl.style.width = pct + '%';
+    if (currentTimeEl) currentTimeEl.textContent = fmt(this.positionMs / 1000);
+    if (durationEl) durationEl.textContent = fmt(dur / 1000);
+  },
+
+  reset() {
+    this.setMode(null);
+    this.setPlaying(false);
+    this.setTrackInfo('No track loaded', null);
+    this.setProgress(0, 0);
+    this.pendingPromise = null;
+    this.advanceLock = false;
+    this.isDeviceActive = false;
+    stopSpotifyPositionTicker();
+  },
+
+  async advance(delta) {
+    if (this.advanceLock) return;
+    this.advanceLock = true;
+    try {
+      if (this.mode === 'spotify') {
+        const q = window.spotifyQueue;
+        const idx = window.spotifyCurrentIndex;
+        const newIdx = (idx != null) ? idx + delta : null;
+        if (q && Array.isArray(q) && newIdx != null && newIdx >= 0 && newIdx < q.length && q[newIdx]?.uri) {
+          window.spotifyCurrentIndex = newIdx;
+          // Update cover to the new track's album art
+          const newTrack = q[newIdx];
+          if (newTrack.albumImage) {
+            window.currentPlaylistCover = newTrack.albumImage;
+            if (window.updatePlayerCover) window.updatePlayerCover(newTrack.albumImage);
+          }
+          await window.spotifyPlayTrack(q[newIdx].uri);
+        } else if (delta > 0) {
+          await window.electronAPI.librespotNext();
+        } else {
+          await window.electronAPI.librespotPrev();
+        }
+      } else {
+        const activeQueue = getActiveQueue();
+        const newIdx = current + delta;
+        if (newIdx >= 0 && newIdx < activeQueue.length) {
+          loadTrack(newIdx);
+        }
+      }
+    } finally {
+      this.advanceLock = false;
+    }
+  },
+
+  setVolume(val) {
+    if (val === 0) {
+      btnMute?.classList.add('muted');
+    } else {
+      this.previousVolume = val;
+      btnMute?.classList.remove('muted');
+    }
+
+    if (this.mode === 'spotify') {
+      if (window.setSpotifyVolume) window.setSpotifyVolume(val);
+    } else {
+      audio.volume = val;
+    }
+  }
+};
+window.PlaybackState = PlaybackState;
 
 // Click-to-toggle player popup
 const footerEl = document.querySelector('footer');
@@ -24,8 +166,7 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Convert a local filesystem path to a file:// URL so the HTML5 Audio element
-// can load it when the app is served from http://127.0.0.1:3000.
+// Convert a local filesystem path to a file:// URL
 function toFileUrl(p) {
   if (!p) return "";
   if (
@@ -35,14 +176,10 @@ function toFileUrl(p) {
   )
     return p;
   const normalized = p.replace(/\\/g, "/");
-  return "file:///" + normalized.replace(/^\/+/, "");
+  const stripped = normalized.replace(/^\/+/, "");
+  const encoded = stripped.split("/").map(s => encodeURIComponent(s)).join("/");
+  return "file:///" + encoded;
 }
-
-/**
- * THE AUTO-CONNECTOR
- * This function handles the "wiring" and ensures it only happens once.
- */
-let localAudioConnected = false;
 
 function ensureAudioConnection() {
   if (!window.myVisualizer || !window.visualizerAudioContext) {
@@ -52,8 +189,7 @@ function ensureAudioConnection() {
 
   if (!audioSource) {
     try {
-      audioSource =
-        window.visualizerAudioContext.createMediaElementSource(audio);
+      audioSource = window.visualizerAudioContext.createMediaElementSource(audio);
       window.localAudioSource = audioSource;
     } catch (e) {
       console.error("[Player] Connection error:", e);
@@ -85,102 +221,98 @@ function getActiveQueue() {
 
 // --- Folder loading ---
 document.getElementById("btn-open").addEventListener("click", async () => {
-  console.log("[player.js] btn-open clicked");
   const result = await window.electronAPI.openFolder();
-  console.log("[player.js] openFolder result:", result);
   if (!result || !result.files.length) return;
 
-  // Set the library path and update the path textarea
-  document.getElementById("path").value = result.folder;
-  console.log("[player.js] calling setLibraryPath with:", result.folder);
+  pathInput.value = result.folder;
   window.setLibraryPath(result.folder);
 
-  const audioExt = [".mp3", ".wav", ".flac", ".ogg", ".m4a"];
-  queue = result.files.filter((f) =>
-    audioExt.some((ext) => f.toLowerCase().endsWith(ext)),
-  );
+  const audioExt = window.AUDIO_EXTENSIONS || [".mp3", ".wav", ".flac", ".ogg", ".m4a"];
+  queue = result.files.filter((f) => {
+    const name = f.replace(/\\/g, "/").split("/").pop();
+    return !name.startsWith("._") && audioExt.some((ext) => f.toLowerCase().endsWith(ext));
+  });
   if (!queue.length) return;
 
   current = 0;
-  renderPlaylist();
+  window.playerQueue = queue;
   loadTrack(current);
 });
 
 function loadTrack(index) {
-  if (window.disconnectLocalAudio) window.disconnectLocalAudio();
-
   const activeQueue = getActiveQueue();
-  current = index;
+  if (index < 0 || index >= activeQueue.length) return;
 
-  if (window.isSpotifyPlayback) {
-    window.lastLocalSwitchTime = Date.now();
-    if (window.stopSpotifyAudio) window.stopSpotifyAudio();
-    if (window.electronAPI?.librespotPause) window.electronAPI.librespotPause();
-    window.isSpotifyPlayback = false;
-    window.spotifyIsPlaying = false;
-    window.spotifyPositionMs = 0;
-    stopSpotifyPositionTicker();
-  }
+  PlaybackState.setMode('local');
+  current = index;
 
   audio.pause();
   audio.src = "";
-  audio.load();
 
-  if (activeQueue.length > 0) {
-    audio.src = toFileUrl(activeQueue[index]);
+  if (window.disconnectLocalAudio) window.disconnectLocalAudio();
 
-    // We try to connect here, but the Play Button click is the "real" trigger
-    ensureAudioConnection();
+  audio.src = toFileUrl(activeQueue[index]);
+  ensureAudioConnection();
 
-    audio
-      .play()
-      .then(() => {
-        // Double-check resume after play starts
-        if (
-          window.visualizerAudioContext &&
-          window.visualizerAudioContext.state === "suspended"
-        ) {
-          window.visualizerAudioContext.resume();
-        }
-      })
-      .catch((err) => console.error("Playback error:", err));
+  audio
+    .play()
+    .then(() => {
+      if (
+        window.visualizerAudioContext &&
+        window.visualizerAudioContext.state === "suspended"
+      ) {
+        window.visualizerAudioContext.resume();
+      }
+    })
+    .catch((err) => console.error("Playback error:", err));
 
-    updateTrackName();
-    updatePlayerCover(window.currentPlaylistCover || '');
-    highlightActive();
-  }
+  const rawName = activeQueue[index]?.replace(/\\/g, "/").split("/").pop() || "No track loaded";
+  const name = rawName.replace(/\.[^/.]+$/, "");
+  PlaybackState.setTrackInfo(name, window.currentPlaylistCover || '');
+  PlaybackState.setPlaying(true);
+  highlightActive();
 }
 
 // --- Controls ---
 document.getElementById("btn-play").addEventListener("click", async () => {
-  if (window.isSpotifyPlayback) {
-    if (window.spotifyStatePending) return;
+  if (PlaybackState.mode === 'spotify') {
+    if (PlaybackState.pendingPromise) return;
     if (window.startSpotifyAudio) window.startSpotifyAudio();
 
-    const wasPlaying = window.spotifyIsPlaying;
-    const target = wasPlaying ? "pause" : "play";
-    window.spotifyStatePending = target;
+    const wasPlaying = PlaybackState.isPlaying;
 
-    // Optimistic UI update
-    window.spotifyIsPlaying = !wasPlaying;
-    document
-      .getElementById("btn-play")
-      .classList.toggle("paused", !window.spotifyIsPlaying);
+    // Optimistic UI: toggle immediately so the app feels responsive.
+    // The audio graph in librespot-renderer.js reads PlaybackState.isPlaying
+    // directly, so audio will follow this immediately.
+    PlaybackState.lastUserActionTime = Date.now();
+    PlaybackState.setPlaying(!wasPlaying);
 
+    // Fire IPC in the background
     const ipcFn = wasPlaying
       ? window.electronAPI.librespotPause
       : window.electronAPI.librespotPlay;
-    const result = await ipcFn();
 
-    window.spotifyStatePending = null;
+    PlaybackState.pendingPromise = ipcFn();
 
-    if (result && result.state) {
-      const actualPlaying = result.state === "playing";
-      if (actualPlaying !== window.spotifyIsPlaying) {
-        window.spotifyIsPlaying = actualPlaying;
-        document
-          .getElementById("btn-play")
-          .classList.toggle("paused", !actualPlaying);
+    let result;
+    try {
+      result = await PlaybackState.pendingPromise;
+    } catch (e) {
+      console.error("[Player] IPC error:", e);
+      result = { success: false, error: e.message };
+    } finally {
+      PlaybackState.pendingPromise = null;
+    }
+
+    // Reconcile with IPC result. Librespot events are ground truth,
+    // but we use the IPC return for faster error recovery.
+    if (!result.success) {
+      console.warn('[Player] IPC failed, reverting optimistic state');
+      PlaybackState.setPlaying(wasPlaying);
+    } else if (result.state) {
+      const actualPlaying = result.state === 'playing';
+      if (actualPlaying !== PlaybackState.isPlaying) {
+        PlaybackState.setPlaying(actualPlaying);
       }
     }
     return;
@@ -189,74 +321,25 @@ document.getElementById("btn-play").addEventListener("click", async () => {
   ensureAudioConnection();
 
   if (audio.paused) {
-    audio.play();
+    audio.play().catch((err) => console.error("Playback error:", err));
   } else {
     audio.pause();
   }
+  PlaybackState.setPlaying(audio.paused === false);
 });
 
 document.getElementById("btn-prev").addEventListener("click", () => {
-  if (window.isSpotifyPlayback) {
-    if (window.startSpotifyAudio) window.startSpotifyAudio();
-    const q = window.spotifyQueue;
-    const idx = window.spotifyCurrentIndex;
-    if (q && Array.isArray(q) && idx != null && idx > 0 && q[idx - 1]?.uri) {
-      window.spotifyCurrentIndex = idx - 1;
-      window.spotifyPlayTrack(q[idx - 1].uri);
-    } else {
-      window.electronAPI.librespotPrev();
-    }
-    return;
-  }
-
-  const activeQueue = getActiveQueue();
-  if (current > 0) loadTrack(current - 1);
+  PlaybackState.advance(-1);
 });
 
 document.getElementById("btn-next").addEventListener("click", () => {
-  if (window.isSpotifyPlayback) {
-    if (window.startSpotifyAudio) window.startSpotifyAudio();
-    const q = window.spotifyQueue;
-    const idx = window.spotifyCurrentIndex;
-    if (
-      q &&
-      Array.isArray(q) &&
-      idx != null &&
-      idx < q.length - 1 &&
-      q[idx + 1]?.uri
-    ) {
-      window.spotifyCurrentIndex = idx + 1;
-      window.spotifyPlayTrack(q[idx + 1].uri);
-    } else {
-      window.electronAPI.librespotNext();
-    }
-    return;
-  }
-
-  const activeQueue = getActiveQueue();
-  if (current < activeQueue.length - 1) loadTrack(current + 1);
+  PlaybackState.advance(1);
 });
 
-let previousVolume = 1;
-window.spotifyPositionMs = 0;
-window.spotifyDurationMs = 0;
-
-document.getElementById("btn-mute").addEventListener("click", () => {
-  const btn = document.getElementById("btn-mute");
-  btn.classList.toggle("muted");
-  const newVol = btn.classList.contains("muted") ? 0 : previousVolume;
-
-  if (window.isSpotifyPlayback) {
-    if (window.setSpotifyVolume) window.setSpotifyVolume(newVol);
-    return;
-  }
-
-  if (audio.volume > 0) {
-    previousVolume = audio.volume;
-    audio.volume = 0;
-  } else {
-    audio.volume = previousVolume;
-  }
+btnMute.addEventListener("click", () => {
+  const isMuted = btnMute.classList.contains("muted");
+  const newVol = isMuted ? PlaybackState.previousVolume : 0;
+  PlaybackState.setVolume(newVol);
 });
 
 audio.addEventListener("ended", () => {
@@ -264,48 +347,39 @@ audio.addEventListener("ended", () => {
   if (current < activeQueue.length - 1) loadTrack(current + 1);
 });
 
-function renderPlaylist() {
-  const activeQueue = getActiveQueue();
-  window.playerQueue = activeQueue;
-  const list = document.getElementById("playlist");
-  if (!list) return;
-  list.innerHTML = "";
-  activeQueue.forEach((f, i) => {
-    const li = document.createElement("li");
-    li.textContent = f.replace(/\\/g, "/").split("/").pop();
-    li.addEventListener("click", () => loadTrack(i));
-    list.appendChild(li);
-  });
-}
-
-// --- Progress bar ---
-const progressBar = document.getElementById("progress-bar");
-const progressFill = document.getElementById("progress-fill");
-
 audio.addEventListener("play", () => {
-  if (window.isSpotifyPlayback) return;
-  document.getElementById("btn-play").classList.add("paused");
+  if (PlaybackState.mode === 'local') PlaybackState.setPlaying(true);
 });
 
 audio.addEventListener("pause", () => {
-  if (window.isSpotifyPlayback) return;
-  document.getElementById("btn-play").classList.remove("paused");
+  if (PlaybackState.mode === 'local') PlaybackState.setPlaying(false);
 });
 
+// --- Progress bar ---
+const progressBar = document.getElementById("progress-bar");
+
 audio.addEventListener("timeupdate", () => {
-  if (window.isSpotifyPlayback) return;
-  const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
-  progressFill.style.width = pct + "%";
-  document.getElementById("current-time").textContent = fmt(audio.currentTime);
-  document.getElementById("duration").textContent = fmt(audio.duration || 0);
+  if (PlaybackState.mode === 'spotify') return;
+  PlaybackState.setProgress(audio.currentTime * 1000, (audio.duration || 0) * 1000);
 });
 
 progressBar.addEventListener("click", (e) => {
   const ratio = e.offsetX / progressBar.offsetWidth;
-  if (window.isSpotifyPlayback) {
+  if (PlaybackState.mode === 'spotify') {
     if (window.startSpotifyAudio) window.startSpotifyAudio();
-    const duration = window.spotifyDurationMs || 1;
-    window.electronAPI.librespotSeek(Math.floor(ratio * duration));
+    const duration = PlaybackState.durationMs || 1;
+    const newPos = Math.floor(ratio * duration);
+
+    // Immediate visual feedback
+    PlaybackState.positionMs = newPos;
+    PlaybackState.setProgress(null, null);
+    // Reset the sample-based anchor so the ticker shows the seek position
+    if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(newPos);
+
+    // Flush old PCM so we don't hear stale audio after the seek
+    if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
+
+    window.electronAPI.librespotSeek(newPos).catch(() => {});
     return;
   }
   audio.currentTime = ratio * audio.duration;
@@ -314,39 +388,13 @@ progressBar.addEventListener("click", (e) => {
 // --- Volume ---
 document.getElementById("volume").addEventListener("input", (e) => {
   const val = parseFloat(e.target.value);
-  previousVolume = val;
-  if (window.isSpotifyPlayback) {
-    if (window.setSpotifyVolume) window.setSpotifyVolume(val);
-    return;
-  }
-  audio.volume = val;
+  PlaybackState.setVolume(val);
 });
 
 function highlightActive() {
-  // Highlight footer playlist
-  document.querySelectorAll("#playlist li").forEach((li, i) => {
-    li.classList.toggle("active", i === current);
-  });
-
-  // Highlight library tracklist
-  document.querySelectorAll(".tracklist-item").forEach((li, i) => {
-    li.classList.toggle("active", i === current);
-  });
-}
-
-function updateTrackName() {
-  const activeQueue = getActiveQueue();
-  const rawName =
-    activeQueue[current]?.replace(/\\/g, "/").split("/").pop() ||
-    "No track loaded";
-  const name = rawName.replace(/\.[^/.]+$/, "");
-  const ele = document.getElementById("track-name");
-  ele.textContent = name;
-
-  // Add/Remove scrolling animation
-  if (ele.scrollWidth > ele.clientWidth) {
-    ele.classList.add("scroll-animation");
-  } else ele.classList.remove("scroll-animation");
+  if (window.highlightTracklistItems) {
+    window.highlightTracklistItems('.tracklist-item', current);
+  }
 }
 
 function fmt(s) {
@@ -359,18 +407,20 @@ function fmt(s) {
 
 // --- Settings: Apply Path ---
 document.getElementById("applyPath").addEventListener("click", () => {
-  const pathInput = document.getElementById("path").value.trim();
-  console.log("[player.js] applyPath clicked, input:", pathInput);
-  if (pathInput) {
-    window.setLibraryPath(pathInput);
+  const pathValue = pathInput.value.trim();
+  if (!pathValue) {
+    showToast("Enter a folder path first", "error");
+    return;
   }
+  window.setLibraryPath(pathValue);
 });
 
 // --- Settings: Clear Library ---
 document.getElementById("clearLibrary").addEventListener("click", async () => {
   await window.electronAPI.dbClearLibrary();
-  document.getElementById("path").value = "";
+  pathInput.value = "";
   loadLibrary();
+  showToast("Library cleared", "success");
 });
 
 // --- Settings: Spotify Connect ---
@@ -383,7 +433,7 @@ document
       .value.trim();
 
     if (!clientId || !clientSecret) {
-      alert("Please enter both Spotify Client ID and Client Secret.");
+      showToast("Enter both Client ID and Secret", "error");
       return;
     }
 
@@ -393,15 +443,13 @@ document
         clientSecret,
       );
       if (result.success) {
-        alert("Spotify connected!");
+        showToast("Spotify connected", "success");
         document.getElementById("spotifyClientSecret").value = "";
       } else {
-        alert(
-          "Spotify connection failed: " + (result.error || "Unknown error"),
-        );
+        showToast("Connection failed — " + (result.error || "Unknown error"), "error");
       }
     } catch (e) {
-      alert("Spotify connection error: " + e.message);
+      showToast("Connection error — " + e.message, "error");
     }
   });
 
@@ -412,34 +460,30 @@ document
     try {
       const result = await window.electronAPI.spotifyDisconnect();
       if (result.success) {
-        alert(
-          "Spotify disconnected. Please reconnect with your Client ID and Secret to refresh permissions.",
-        );
+        showToast("Spotify disconnected", "success");
       } else {
-        alert("Failed to disconnect: " + (result.error || "Unknown error"));
+        showToast("Failed to disconnect — " + (result.error || "Unknown error"), "error");
       }
     } catch (e) {
-      alert("Disconnect error: " + e.message);
+      showToast("Disconnect error — " + e.message, "error");
     }
   });
 
-// --- Spotify position ticker ---
+// --- Spotify position ticker (sample-based) ---
 let spotifyPositionInterval = null;
 
 function startSpotifyPositionTicker() {
   if (spotifyPositionInterval) return;
   spotifyPositionInterval = setInterval(() => {
-    if (!window.isSpotifyPlayback || !window.spotifyIsPlaying) return;
-    window.spotifyPositionMs += 200;
-    const duration = window.spotifyDurationMs || 1;
-    const pct = (window.spotifyPositionMs / duration) * 100;
-    const fill = document.getElementById("progress-fill");
-    const curTime = document.getElementById("current-time");
-    const durEl = document.getElementById("duration");
-    if (fill) fill.style.width = pct + "%";
-    if (curTime) curTime.textContent = fmt(window.spotifyPositionMs / 1000);
-    if (durEl) durEl.textContent = fmt(duration / 1000);
-  }, 200);
+    if (PlaybackState.mode !== 'spotify' || !PlaybackState.isPlaying) return;
+    if (window.getSpotifyPosition) {
+      const pos = window.getSpotifyPosition();
+      if (pos != null) {
+        PlaybackState.positionMs = pos;
+        PlaybackState.setProgress(null, null);
+      }
+    }
+  }, 50);
 }
 
 function stopSpotifyPositionTicker() {
@@ -449,19 +493,40 @@ function stopSpotifyPositionTicker() {
   }
 }
 
+// --- Toast notification ---
+let toastTimer = null;
+function showToast(msg, type = 'success') {
+  if (!toastEl) return;
+  toastEl.textContent = msg;
+  toastEl.className = 'toast-visible toast-' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.classList.remove('toast-visible');
+    toastEl.classList.add('toast-hidden');
+  }, 4000);
+}
+window.showToast = showToast;
+
 // --- Global Spotify play ---
 window.spotifyPlayTrack = async (uri) => {
-  console.log("[player.js] spotifyPlayTrack called with uri:", uri);
-
-  window.pauseLocalAudio();
-  if (window.disconnectLocalAudio) window.disconnectLocalAudio();
-
-  if (window.isSpotifyPlayback) {
-    if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
-  } else {
-    if (window.stopSpotifyAudio) window.stopSpotifyAudio();
-    window.isSpotifyPlayback = true;
+  if (!uri) {
+    showToast("No track selected");
+    return;
   }
+
+  // Prevent overlapping play calls (rapid track clicks)
+  if (PlaybackState.pendingPromise) {
+    return;
+  }
+
+  // Always flush old PCM so the previous track doesn't bleed in
+  if (window.flushSpotifyBuffers) window.flushSpotifyBuffers();
+
+  PlaybackState.setMode('spotify');
+  PlaybackState.positionMs = 0;
+  if (window.resetSpotifyPositionAnchor) window.resetSpotifyPositionAnchor(0);
+  PlaybackState.lastUserActionTime = Date.now();
+  startSpotifyPositionTicker();
 
   if (window.startSpotifyAudio) {
     window.startSpotifyAudio();
@@ -469,43 +534,57 @@ window.spotifyPlayTrack = async (uri) => {
     console.error("[player.js] window.startSpotifyAudio is MISSING");
   }
 
-  window.spotifyPositionMs = 0;
-  startSpotifyPositionTicker();
+  // Set playing state immediately — the user explicitly requested playback.
+  // The audio graph in librespot-renderer reads this directly.
+  PlaybackState.setPlaying(true);
 
   const deviceId = await window.electronAPI.getLibrespotDeviceId();
-  console.log("[player.js] Librespot device ID:", deviceId);
 
   if (!deviceId) {
-    console.error("[player.js] No librespot device ID available");
-    window.lastLocalSwitchTime = Date.now();
-    window.isSpotifyPlayback = false;
-    window.spotifyIsPlaying = false;
-    if (window.stopSpotifyAudio) window.stopSpotifyAudio();
-    stopSpotifyPositionTicker();
+    showToast("Spotify playback unavailable — no device connected");
+    PlaybackState.reset();
     return;
   }
 
-  const xfer = await window.electronAPI.spotifyTransferPlayback(deviceId, true);
-  console.log("[player.js] Transfer result:", xfer);
+  // If the device is already active, skip the expensive transfer step
+  if (!PlaybackState.isDeviceActive) {
+    let xfer = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      xfer = await window.electronAPI.spotifyTransferPlayback(deviceId, true);
+      if (xfer.success) break;
+      if (attempt < 2) {
+        showToast("Spotify device not ready, retrying…");
+        await new Promise((r) => setTimeout(r, 1200));
+      }
+    }
 
-  await new Promise((r) => setTimeout(r, 1500));
+    if (!xfer.success) {
+      showToast("Spotify transfer failed — " + (xfer.error || "check your connection"));
+      PlaybackState.reset();
+      return;
+    }
+    PlaybackState.isDeviceActive = true;
+  }
 
-  const result = await window.electronAPI.spotifyPlayTrack(uri, deviceId);
-  console.log("[player.js] Play result:", result);
+  PlaybackState.pendingPromise = window.electronAPI.spotifyPlayTrack(uri, deviceId);
+  let result;
+  try {
+    result = await PlaybackState.pendingPromise;
+  } catch (e) {
+    console.error("[player.js] Play IPC error:", e);
+    result = { success: false, error: e.message };
+  } finally {
+    PlaybackState.pendingPromise = null;
+  }
 
   if (!result.success) {
-    console.error("[player.js] Failed to play Spotify track:", result.error);
-    window.lastLocalSwitchTime = Date.now();
-    window.isSpotifyPlayback = false;
-    window.spotifyIsPlaying = false;
-    if (window.stopSpotifyAudio) window.stopSpotifyAudio();
-    stopSpotifyPositionTicker();
+    showToast("Spotify playback failed — " + (result.error || "unknown error"));
+    PlaybackState.reset();
   }
 };
 
-// --- Expose for library.js ---
+// --- Expose for library.js and librespot-renderer.js ---
 window.loadPlayerTrack = loadTrack;
-window.renderPlaylist = renderPlaylist;
 window.pauseLocalAudio = () => {
   audio.pause();
 };
@@ -522,3 +601,6 @@ window.disconnectLocalAudio = () => {
     } catch (_) {}
   }
 };
+window.startSpotifyPositionTicker = startSpotifyPositionTicker;
+window.fmt = fmt;
+window.toFileUrl = toFileUrl;

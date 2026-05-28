@@ -1,9 +1,13 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Guard against duplicate listener registration
+const pcmCbs = new Set();
+const eventCbs = new Set();
+const pollCbs = new Set();
+
 contextBridge.exposeInMainWorld("electronAPI", {
   openFolder: () => ipcRenderer.invoke("open-folder"),
-  scanFolder: (folderPath, userTriggered) =>
-    ipcRenderer.invoke("scan-folder", folderPath, userTriggered),
+  scanFolder: (folderPath) => ipcRenderer.invoke("scan-folder", folderPath),
   dbAddPath: (folderPath) => ipcRenderer.invoke("db-add-path", folderPath),
   dbGetPaths: () => ipcRenderer.invoke("db-get-paths"),
   dbClearLibrary: () => ipcRenderer.invoke("db-clear-library"),
@@ -24,14 +28,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
   librespotPrev: () => ipcRenderer.invoke("librespot-prev"),
   librespotSeek: (positionMs) =>
     ipcRenderer.invoke("librespot-seek", positionMs),
-  librespotSetVolume: (volume) =>
-    ipcRenderer.invoke("librespot-set-volume", volume),
   getLibrespotDeviceId: () => ipcRenderer.invoke("get-librespot-device-id"),
-  // Librespot PCM / events
-  onSpotifyPcm: (callback) =>
-    ipcRenderer.on("spotify-pcm", (_, buffer) => callback(buffer)),
-  onSpotifyEvent: (callback) =>
-    ipcRenderer.on("spotify-event", (_, event) => callback(event)),
-  onScanFolderStatus: (cb) =>
-    ipcRenderer.on("scan-folder-status", (_e, data) => cb(data)),
+  // Librespot PCM / events / poll
+  onSpotifyPcm: (callback) => {
+    if (pcmCbs.has(callback)) return;
+    pcmCbs.add(callback);
+    ipcRenderer.on("spotify-pcm", (_, buffer) => callback(buffer));
+  },
+  onSpotifyEvent: (callback) => {
+    if (eventCbs.has(callback)) return;
+    eventCbs.add(callback);
+    ipcRenderer.on("spotify-event", (_, event) => callback(event));
+  },
+  onSpotifyPoll: (callback) => {
+    if (pollCbs.has(callback)) return;
+    pollCbs.add(callback);
+    ipcRenderer.on("spotify-poll", (_, result) => callback(result));
+  },
 });

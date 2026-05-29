@@ -46,7 +46,7 @@ const initVisualizer = () => {
 
   resizeCanvas(canvas, visualizer);
 
-  const presetKeys = Object.keys(presets).slice(0, 10);
+  const presetKeys = Object.keys(presets);
   if (presetKeys.length > 0) {
     visualizer.loadPreset(presets[presetKeys[0]], 0.0);
   }

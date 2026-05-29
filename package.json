@@ -32,8 +32,7 @@
     "@electron-forge/plugin-fuses": "^7.11.2",
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.4",
-    "electron": "^34.5.8",
-    "electron-rebuild": "^2.0.3"
+    "electron": "^34.5.8"
   },
   "dependencies": {
     "@lox-audioserver/node-librespot": "file:vendor/node-librespot",

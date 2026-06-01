@@ -5,6 +5,29 @@
 <head>
     <title>TheVibezMachine</title>
     <link href="styles.css" rel="stylesheet" />
+    <script>
+      // Fast-path: apply cached theme tokens before body paints.
+      // theme.js reconciles with the file-backed config asynchronously.
+      (function() {
+        var defaults = {
+          "--blade": "#b094c7",
+          "--blade-active": "#483666",
+          "--accent": "#e2c044",
+          "--accent-dark": "#d4b13e",
+          "--card": "#2a2a2a",
+          "--body": "#000000",
+          "--text": "#ffffff",
+          "--text-muted": "#888888"
+        };
+        try {
+          var c = localStorage.getItem('tvm-theme-cache');
+          var t = c ? JSON.parse(c).tokens : defaults;
+          for (var k in t) document.documentElement.style.setProperty(k, t[k]);
+        } catch (e) {
+          for (var k in defaults) document.documentElement.style.setProperty(k, defaults[k]);
+        }
+      })();
+    </script>
 </head>
 
 <!-- BODY -->
@@ -104,6 +127,11 @@
                       <button id="spotifyConnect">Connect to Spotify</button>
                       <button id="spotifyDisconnect">Disconnect Spotify</button>
                     </div>
+                    <div id="colourScheme" class="settings-section">
+                        <label>Colour Scheme</label>
+                        <div id="theme-strip"></div>
+                        <select id="theme-select"></select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -146,6 +174,8 @@
 
     <!-- Scripts -->
     <script src="shared/constants.js"></script>
+    <script src="tabScripts/theme.js"></script>
+    <script src="tabScripts/settings.js"></script>
     <script src="tabScripts/sharedUi.js"></script>
     <script src="tabScripts/ui.js"></script>
     <script src="tabScripts/library.js"></script>

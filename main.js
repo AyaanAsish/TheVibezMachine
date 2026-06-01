@@ -274,6 +274,22 @@ ipcMain.handle('db-clear-library', () => {
   return { success: true }
 })
 
+ipcMain.handle('get-theme', async () => {
+  const configPath = path.join(app.getPath('userData'), 'theme.json')
+  try {
+    const raw = await fs.readFile(configPath, 'utf8')
+    return JSON.parse(raw)
+  } catch {
+    return { themeName: 'Vibez Classic' }
+  }
+})
+
+ipcMain.handle('set-theme', async (_event, themeName) => {
+  const configPath = path.join(app.getPath('userData'), 'theme.json')
+  await fs.writeFile(configPath, JSON.stringify({ themeName }), 'utf8')
+  return { success: true }
+})
+
 registerSpotifyIpcs(ipcMain)
 registerLibrespotIpcs(ipcMain)
 

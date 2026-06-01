@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("librespot-seek", typeof positionMs === 'number' && isFinite(positionMs) && positionMs >= 0 ? Math.floor(positionMs) : 0),
   getLibrespotDeviceId: () => ipcRenderer.invoke("get-librespot-device-id"),
   reconnectLibrespot: () => ipcRenderer.invoke("reconnect-librespot"),
+  getTheme: () => ipcRenderer.invoke("get-theme"),
+  setTheme: (themeName) => ipcRenderer.invoke("set-theme", themeName),
   // Librespot PCM / events / poll
   onSpotifyPcm: (callback) => {
     if (pcmCbs.has(callback)) return;

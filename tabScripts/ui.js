@@ -59,6 +59,7 @@ function switchTab(newTab) {
         setTimeout(() => {
             const newItems = document.querySelector('#' + newTab + ' .items')
             if (newItems) newItems.classList.add('items-visible')
+            if (newTab === 'settings' && window.renderThemeStrip) renderThemeStrip()
         }, 50)
     }, 50)
 }

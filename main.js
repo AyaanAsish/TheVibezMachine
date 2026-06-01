@@ -290,6 +290,22 @@ ipcMain.handle('set-theme', async (_event, themeName) => {
   return { success: true }
 })
 
+ipcMain.handle('get-spacing', async () => {
+  const configPath = path.join(app.getPath('userData'), 'spacing.json')
+  try {
+    const raw = await fs.readFile(configPath, 'utf8')
+    return JSON.parse(raw)
+  } catch {
+    return { presetName: 'Default' }
+  }
+})
+
+ipcMain.handle('set-spacing', async (_event, presetName) => {
+  const configPath = path.join(app.getPath('userData'), 'spacing.json')
+  await fs.writeFile(configPath, JSON.stringify({ presetName }), 'utf8')
+  return { success: true }
+})
+
 registerSpotifyIpcs(ipcMain)
 registerLibrespotIpcs(ipcMain)
 

@@ -1,0 +1,60 @@
+let currentPresetName = null
+let committedPresetName = null
+
+const SpacingEngine = {
+  applySpacing(presetName) {
+    const tokens = window.SPACING_PRESETS && window.SPACING_PRESETS[presetName]
+    if (!tokens) return
+    for (const [token, value] of Object.entries(tokens)) {
+      document.documentElement.style.setProperty(token, value)
+    }
+    currentPresetName = presetName
+  },
+
+  getPresetName() {
+    return currentPresetName
+  },
+
+  previewSpacing(presetName) {
+    this.applySpacing(presetName)
+  },
+
+  commitSpacing(presetName) {
+    this.applySpacing(presetName)
+    committedPresetName = presetName
+    if (window.electronAPI && window.electronAPI.setSpacing) {
+      window.electronAPI.setSpacing(presetName)
+    }
+    try {
+      const tokens = window.SPACING_PRESETS[presetName]
+      localStorage.setItem('tvm-spacing-cache', JSON.stringify({ presetName, tokens }))
+    } catch (e) {}
+  },
+
+  restoreSpacing() {
+    if (committedPresetName) {
+      this.applySpacing(committedPresetName)
+    }
+  }
+}
+
+if (window.electronAPI && window.electronAPI.getSpacing) {
+  window.electronAPI.getSpacing().then(result => {
+    const presetName = result && result.presetName ? result.presetName : 'Default'
+    SpacingEngine.applySpacing(presetName)
+    committedPresetName = presetName
+    currentPresetName = presetName
+    try {
+      const tokens = window.SPACING_PRESETS[presetName]
+      localStorage.setItem('tvm-spacing-cache', JSON.stringify({ presetName, tokens }))
+    } catch (e) {}
+  }).catch(() => {
+    if (!committedPresetName) {
+      SpacingEngine.applySpacing('Default')
+      committedPresetName = 'Default'
+      currentPresetName = 'Default'
+    }
+  })
+}
+
+window.SpacingEngine = SpacingEngine

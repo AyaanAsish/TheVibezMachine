@@ -52,6 +52,35 @@ function initSettings() {
     if (window.ThemeEngine) window.ThemeEngine.commitTheme(name)
     renderThemeStrip(name)
   })
+
+  const spacingSelect = document.getElementById('spacing-select')
+  if (spacingSelect) {
+    const currentSpacing = (window.SpacingEngine ? window.SpacingEngine.getPresetName() : null) || 'Default'
+
+    for (const name of Object.keys(window.SPACING_PRESETS || {})) {
+      const option = document.createElement('option')
+      option.value = name
+      option.textContent = name
+      if (name === currentSpacing) option.selected = true
+      spacingSelect.appendChild(option)
+    }
+
+    spacingSelect.addEventListener('mouseover', (e) => {
+      if (e.target.tagName === 'OPTION') {
+        const name = e.target.value
+        if (window.SpacingEngine) window.SpacingEngine.previewSpacing(name)
+      }
+    })
+
+    spacingSelect.addEventListener('mouseleave', () => {
+      if (window.SpacingEngine) window.SpacingEngine.restoreSpacing()
+    })
+
+    spacingSelect.addEventListener('change', (e) => {
+      const name = e.target.value
+      if (window.SpacingEngine) window.SpacingEngine.commitSpacing(name)
+    })
+  }
 }
 
 window.renderThemeStrip = renderThemeStrip

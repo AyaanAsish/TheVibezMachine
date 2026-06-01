@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   reconnectLibrespot: () => ipcRenderer.invoke("reconnect-librespot"),
   getTheme: () => ipcRenderer.invoke("get-theme"),
   setTheme: (themeName) => ipcRenderer.invoke("set-theme", themeName),
+  getSpacing: () => ipcRenderer.invoke("get-spacing"),
+  setSpacing: (presetName) => ipcRenderer.invoke("set-spacing", presetName),
   // Librespot PCM / events / poll
   onSpotifyPcm: (callback) => {
     if (pcmCbs.has(callback)) return;

@@ -26,6 +26,20 @@
         } catch (e) {
           for (var k in defaults) document.documentElement.style.setProperty(k, defaults[k]);
         }
+
+        var spacingDefaults = {
+          "--grid-gap": "20px",
+          "--tracklist-gap": "6px",
+          "--settings-gap": "14px",
+          "--card-padding": "12px"
+        };
+        try {
+          var sc = localStorage.getItem('tvm-spacing-cache');
+          var st = sc ? JSON.parse(sc).tokens : spacingDefaults;
+          for (var k in st) document.documentElement.style.setProperty(k, st[k]);
+        } catch (e) {
+          for (var k in spacingDefaults) document.documentElement.style.setProperty(k, spacingDefaults[k]);
+        }
       })();
     </script>
 </head>
@@ -127,10 +141,14 @@
                       <button id="spotifyConnect">Connect to Spotify</button>
                       <button id="spotifyDisconnect">Disconnect Spotify</button>
                     </div>
-                    <div id="colourScheme" class="settings-section">
+                    <hr>
+                    <div id="uiSettings" class="settings-section">
+                        <label class="section-heading">UI</label>
                         <label>Colour Scheme</label>
                         <div id="theme-strip"></div>
                         <select id="theme-select"></select>
+                        <label>Spacing</label>
+                        <select id="spacing-select"></select>
                     </div>
                 </div>
             </div>
@@ -175,6 +193,7 @@
     <!-- Scripts -->
     <script src="shared/constants.js"></script>
     <script src="tabScripts/theme.js"></script>
+    <script src="tabScripts/spacing.js"></script>
     <script src="tabScripts/settings.js"></script>
     <script src="tabScripts/sharedUi.js"></script>
     <script src="tabScripts/ui.js"></script>

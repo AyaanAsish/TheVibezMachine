@@ -35,8 +35,10 @@
     "electron": "^34.5.8"
   },
   "dependencies": {
-    "@lox-audioserver/node-librespot": "file:vendor/node-librespot",
     "better-sqlite3": "^12.10.0",
     "electron-squirrel-startup": "^1.0.1"
+  },
+  "optionalDependencies": {
+    "@lox-audioserver/node-librespot": "file:vendor/node-librespot"
   }
 }

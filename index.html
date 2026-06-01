@@ -28,14 +28,20 @@
         }
 
         var spacingDefaults = {
-          "--grid-gap": "20px",
-          "--tracklist-gap": "6px",
-          "--settings-gap": "14px",
-          "--card-padding": "12px"
+          "--grid-gap": "40px"
         };
         try {
           var sc = localStorage.getItem('tvm-spacing-cache');
           var st = sc ? JSON.parse(sc).tokens : spacingDefaults;
+          document.documentElement.style.removeProperty('--tracklist-gap');
+          document.documentElement.style.removeProperty('--card-padding');
+          document.documentElement.style.removeProperty('--settings-gap');
+          document.documentElement.style.removeProperty('--library-grid-gap');
+          document.documentElement.style.removeProperty('--library-tracklist-gap');
+          document.documentElement.style.removeProperty('--library-card-padding');
+          document.documentElement.style.removeProperty('--explore-grid-gap');
+          document.documentElement.style.removeProperty('--explore-tracklist-gap');
+          document.documentElement.style.removeProperty('--explore-card-padding');
           for (var k in st) document.documentElement.style.setProperty(k, st[k]);
         } catch (e) {
           for (var k in spacingDefaults) document.documentElement.style.setProperty(k, spacingDefaults[k]);

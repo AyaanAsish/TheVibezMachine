@@ -5,6 +5,16 @@ const SpacingEngine = {
   applySpacing(presetName) {
     const tokens = window.SPACING_PRESETS && window.SPACING_PRESETS[presetName]
     if (!tokens) return
+    // Clean up all old tokens so they fall back to :root defaults
+    document.documentElement.style.removeProperty('--tracklist-gap')
+    document.documentElement.style.removeProperty('--card-padding')
+    document.documentElement.style.removeProperty('--settings-gap')
+    document.documentElement.style.removeProperty('--library-grid-gap')
+    document.documentElement.style.removeProperty('--library-tracklist-gap')
+    document.documentElement.style.removeProperty('--library-card-padding')
+    document.documentElement.style.removeProperty('--explore-grid-gap')
+    document.documentElement.style.removeProperty('--explore-tracklist-gap')
+    document.documentElement.style.removeProperty('--explore-card-padding')
     for (const [token, value] of Object.entries(tokens)) {
       document.documentElement.style.setProperty(token, value)
     }

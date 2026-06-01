@@ -472,9 +472,7 @@
   }
 
   function drawSection(items, title, startY, cols) {
-    const totalGridW = cols * (TILE_W + currentGap) - currentGap;
-    const cssW = canvas.width / (window.devicePixelRatio || 1);
-    const startX = (cssW - totalGridW) / 2;
+    const startX = 20;
 
     ctx.font = 'bold 18px oswald, sans-serif';
     ctx.fillStyle = '#e2c044';

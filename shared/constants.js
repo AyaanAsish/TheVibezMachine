@@ -15,22 +15,13 @@ const THEMES = {
 
 const SPACING_PRESETS = {
   "Compact": {
-    "--grid-gap":        "12px",
-    "--tracklist-gap":   "2px",
-    "--settings-gap":    "8px",
-    "--card-padding":    "8px",
+    "--grid-gap":        "16px",
   },
   "Default": {
-    "--grid-gap":        "20px",
-    "--tracklist-gap":   "6px",
-    "--settings-gap":    "14px",
-    "--card-padding":    "12px",
+    "--grid-gap":        "40px",
   },
   "Relaxed": {
-    "--grid-gap":        "32px",
-    "--tracklist-gap":   "12px",
-    "--settings-gap":    "22px",
-    "--card-padding":    "18px",
+    "--grid-gap":        "80px",
   },
 }
 

@@ -10,10 +10,7 @@
 }
 
 :root {
-  --grid-gap: 20px;
-  --tracklist-gap: 6px;
-  --settings-gap: 14px;
-  --card-padding: 12px;
+  --grid-gap: 40px;
 }
 
 /* ANIMATIONS */
@@ -562,8 +559,8 @@ footer.player-visible {
   flex-direction: column;
   box-sizing: border-box;
   border-right: 2px solid rgba(255, 255, 255, 0.1);
-  gap: var(--tracklist-gap);
 }
+
 
 .library-album-info {
   position: absolute;
@@ -639,7 +636,6 @@ footer.player-visible {
   cursor: pointer;
   transition: transform 0.2s;
   pointer-events: auto;
-  padding: var(--card-padding);
 }
 
 .playlist-card * {
@@ -707,7 +703,6 @@ footer.player-visible {
   flex-direction: column;
   align-items: center;
   gap: 15px;
-  padding: var(--card-padding);
 }
 
 .album-cover-large {
@@ -819,7 +814,7 @@ footer.player-visible {
 #libPath {
   display: flex;
   flex-direction: column;
-  gap: var(--settings-gap);
+  gap: 12px;
   width: 80%;
   max-width: 800px;
 }
@@ -1208,7 +1203,7 @@ footer.player-visible {
 #spotifyAuth {
   display: flex;
   flex-direction: column;
-  gap: var(--settings-gap);
+  gap: 12px;
   width: 80%;
   max-width: 800px;
   margin-top: 40px;
@@ -1316,7 +1311,7 @@ footer.player-visible {
 #uiSettings {
   display: flex;
   flex-direction: column;
-  gap: var(--settings-gap);
+  gap: 12px;
   width: 80%;
   max-width: 800px;
 }

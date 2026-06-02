@@ -32,9 +32,14 @@
 
   const TILE_W = 160;
   const TILE_H = 210;
-  const GAP = 24;
   const HEADER_H = 40;
   const COVER_H = 150;
+
+  let currentGap = 24;
+  function updateGap() {
+    const val = getComputedStyle(document.documentElement).getPropertyValue('--grid-gap');
+    currentGap = parseInt(val, 10) || 24;
+  }
 
   async function getCredentials() {
     try {
@@ -417,17 +422,18 @@
   }
 
   function resize() {
+    updateGap();
     const container = canvas.parentElement;
     if (!container) return;
     const dpr = window.devicePixelRatio || 1;
     const cssWidth = Math.max(1, container.clientWidth - 40);
-    const maxCols = Math.max(1, Math.floor(cssWidth / (TILE_W + GAP)));
+    const maxCols = Math.max(1, Math.floor(cssWidth / (TILE_W + currentGap)));
 
     const albumsRows = savedAlbums.length ? Math.ceil(savedAlbums.length / maxCols) : 0;
     const playlistsRows = savedPlaylists.length ? Math.ceil(savedPlaylists.length / maxCols) : 0;
     let cssHeight = 40;
-    if (savedAlbums.length) cssHeight += HEADER_H + albumsRows * (TILE_H + GAP);
-    if (savedPlaylists.length) cssHeight += HEADER_H + playlistsRows * (TILE_H + GAP);
+    if (savedAlbums.length) cssHeight += HEADER_H + albumsRows * (TILE_H + currentGap);
+    if (savedPlaylists.length) cssHeight += HEADER_H + playlistsRows * (TILE_H + currentGap);
     cssHeight = Math.max(cssHeight, container.clientHeight - 40);
 
     canvas.style.width = cssWidth + 'px';
@@ -466,9 +472,7 @@
   }
 
   function drawSection(items, title, startY, cols) {
-    const totalGridW = cols * (TILE_W + GAP) - GAP;
-    const cssW = canvas.width / (window.devicePixelRatio || 1);
-    const startX = (cssW - totalGridW) / 2;
+    const startX = 20;
 
     ctx.font = 'bold 18px oswald, sans-serif';
     ctx.fillStyle = '#e2c044';
@@ -479,8 +483,8 @@
     items.forEach((item, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const x = startX + col * (TILE_W + GAP);
-      const itemY = y + row * (TILE_H + GAP);
+      const x = startX + col * (TILE_W + currentGap);
+      const itemY = y + row * (TILE_H + currentGap);
       const isHovered = hoveredItem === item;
 
       hitRegions.push({ x, y: itemY, w: TILE_W, h: TILE_H, item });
@@ -523,10 +527,11 @@
       if (isHovered) ctx.restore();
     });
 
-    return y + Math.ceil(items.length / cols) * (TILE_H + GAP);
+    return y + Math.ceil(items.length / cols) * (TILE_H + currentGap);
   }
 
   function draw() {
+    updateGap();
     const prevScale = currentHoverScale;
     const target = hoveredItem ? HOVER_SCALE : 1;
     currentHoverScale += (target - currentHoverScale) * LERP_FACTOR;
@@ -569,11 +574,11 @@
       return;
     }
 
-    const cols = Math.max(1, Math.floor(cssW / (TILE_W + GAP)));
+    const cols = Math.max(1, Math.floor(cssW / (TILE_W + currentGap)));
     let nextY = 20;
     if (savedAlbums.length) {
       nextY = drawSection(savedAlbums, 'Saved Albums', nextY, cols);
-      nextY += GAP;
+      nextY += currentGap;
     }
     if (savedPlaylists.length) {
       drawSection(savedPlaylists, 'Saved Playlists', nextY, cols);

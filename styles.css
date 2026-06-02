@@ -9,6 +9,10 @@
   src: url("assets/fonts/SourceSerif4.ttf") format("truetype");
 }
 
+:root {
+  --grid-gap: 40px;
+}
+
 /* ANIMATIONS */
 .scroll-animation {
   animation: animate_text 20s linear infinite;
@@ -31,7 +35,7 @@ html {
   padding: 0;
   width: 100%;
   height: 100%;
-  background: black;
+  background: var(--body);
   font-family: source_serif_4, -apple-system, "Segoe UI Emoji", sans-serif;
   display: flex;
   flex-direction: column;
@@ -40,14 +44,14 @@ html {
 #app {
   display: flex;
   flex: 1;
-  background-image: radial-gradient(black, #483666);
+  background-image: radial-gradient(var(--body), var(--blade-active));
   position: relative;
   overflow: hidden;
   border-radius: 8px;
 }
 
 .keyword {
-  color: #e2c044;
+  color: var(--accent);
 }
 
 .hidden {
@@ -124,7 +128,7 @@ html {
   bottom: 0;
   width: 46px;
   border: 4px solid black;
-  background: #b094c7;
+  background: var(--blade);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -135,7 +139,7 @@ html {
 
 .bladeLabel {
   position: absolute;
-  background: #b094c7;
+  background: var(--blade);
   color: black;
   font-family: oswald;
   font-size: 18px;
@@ -160,8 +164,8 @@ html {
 }
 
 .activeBlade .bladeLabel {
-  color: white;
-  background: #483666;
+  color: var(--text);
+  background: var(--blade-active);
 }
 
 .animating {
@@ -185,12 +189,12 @@ footer {
   pointer-events: none;
   width: 560px;
   z-index: 1000;
-  background: black;
-  border: 2px solid #b094c7;
+  background: var(--body);
+  border: 2px solid var(--blade);
   border-radius: 14px;
   padding: 36px 40px;
   font-family: source_serif_4;
-  color: white;
+  color: var(--text);
   text-align: center;
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
@@ -208,7 +212,7 @@ footer.player-visible {
   transform: translateX(-50%);
   width: 160px;
   height: 32px;
-  background: #483666;
+  background: var(--blade-active);
   border-radius: 8px 8px 0 0;
   z-index: 999;
   display: flex;
@@ -230,7 +234,7 @@ footer.player-visible {
 }
 
 #trigger-label {
-  color: #b094c7;
+  color: var(--blade);
   font-family: oswald;
   font-size: 12px;
   letter-spacing: 0.08em;
@@ -288,7 +292,7 @@ footer.player-visible {
 #progress-bar {
   width: 100%;
   height: 5px;
-  background: #2a2a2a;
+  background: var(--card);
   border-radius: 3px;
   cursor: pointer;
   margin: 14px 0;
@@ -297,7 +301,7 @@ footer.player-visible {
 
 #progress-fill {
   height: 100%;
-  background: #e2c044;
+  background: var(--accent);
   border-radius: 3px;
   width: 0%;
 }
@@ -320,12 +324,12 @@ footer.player-visible {
   height: 280px;
   background: linear-gradient(to right,
       transparent calc(50% - 2px),
-      #e2c044 50%,
-      #e2c044 calc(50% + 1px),
+      var(--accent) 50%,
+      var(--accent) calc(50% + 1px),
       transparent calc(50% + 1px));
   box-sizing: border-box;
-  border-top: #d4b13e solid 4px;
-  border-bottom: #d4b13e solid 4px;
+  border-top: var(--accent-dark) solid 4px;
+  border-bottom: var(--accent-dark) solid 4px;
 }
 
 #volume {
@@ -351,12 +355,12 @@ footer.player-visible {
   height: 16px;
   width: 16px;
   border-radius: 100%;
-  background: #e2c044;
+  background: var(--accent);
   cursor: pointer;
 }
 
 #volume::-webkit-slider-thumb:hover {
-  background: #d4b13e;
+  background: var(--accent-dark);
   transform: scale(1.03);
 }
 
@@ -371,7 +375,7 @@ footer.player-visible {
 
 #time-row {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .controlBtn {
@@ -444,7 +448,7 @@ footer.player-visible {
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 40px;
+  gap: var(--grid-gap);
   padding: 20px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -464,20 +468,20 @@ footer.player-visible {
 
 .library-grid::-webkit-scrollbar-track,
 .library-tracklist::-webkit-scrollbar-track {
-  background: #2a2a2a;
+  background: var(--card);
   border-radius: 5px;
 }
 
 .library-grid::-webkit-scrollbar-thumb,
 .library-tracklist::-webkit-scrollbar-thumb {
-  background: #e2c044;
+  background: var(--accent);
   border-radius: 5px;
-  border: 2px solid #2a2a2a;
+  border: 2px solid var(--card);
 }
 
 .library-grid::-webkit-scrollbar-thumb:hover,
 .library-tracklist::-webkit-scrollbar-thumb:hover {
-  background: #d4b13e;
+  background: var(--accent-dark);
 }
 
 .library-album-info::-webkit-scrollbar {
@@ -490,12 +494,12 @@ footer.player-visible {
 }
 
 .library-album-info::-webkit-scrollbar-thumb {
-  background: #e2c044;
+  background: var(--accent);
   border-radius: 4px;
 }
 
 .library-album-info::-webkit-scrollbar-thumb:hover {
-  background: #d4b13e;
+  background: var(--accent-dark);
 }
 @media (max-width: 900px) {
   #library .items,
@@ -557,6 +561,7 @@ footer.player-visible {
   border-right: 2px solid rgba(255, 255, 255, 0.1);
 }
 
+
 .library-album-info {
   position: absolute;
   padding: 20px;
@@ -573,7 +578,7 @@ footer.player-visible {
 }
 
 .library-back-btn {
-  color: #e2c044;
+  color: var(--accent);
   font-family: oswald;
   font-size: 16px;
   cursor: pointer;
@@ -612,18 +617,17 @@ footer.player-visible {
 }
 
 .tracklist-item.active .track-title {
-  color: #e2c044;
+  color: var(--accent);
 }
 
 .track-number {
-  color: #888;
+  color: var(--text-muted);
   width: 30px;
   font-size: 14px;
 }
 
 .track-title {
-  overflow-wrap: anywhere;
-  color: white;
+  color: var(--text);
   font-size: 14px;
 }
 
@@ -645,7 +649,7 @@ footer.player-visible {
 .playlist-cover {
   width: 150px;
   height: 150px;
-  background: #2a2a2a;
+  background: var(--card);
   border-radius: 8px;
   overflow: hidden;
   display: flex;
@@ -671,7 +675,7 @@ footer.player-visible {
 }
 
 .playlist-name {
-  color: white;
+  color: var(--text);
   font-size: 14px;
   font-family: oswald;
   display: block;
@@ -681,7 +685,7 @@ footer.player-visible {
 }
 
 .playlist-artist {
-  color: #888;
+  color: var(--text-muted);
   font-size: 12px;
   font-family: oswald;
   display: block;
@@ -689,7 +693,7 @@ footer.player-visible {
 }
 
 .empty-message {
-  color: #888;
+  color: var(--text-muted);
   font-size: 16px;
   padding: 20px;
 }
@@ -708,7 +712,7 @@ footer.player-visible {
   aspect-ratio: 1;
   border-radius: 8px;
   object-fit: cover;
-  background: #2a2a2a;
+  background: var(--card);
 }
 
 .album-cover-large.no-cover {
@@ -720,19 +724,19 @@ footer.player-visible {
 }
 
 .album-name {
-  color: white;
+  color: var(--text);
   font-family: oswald;
   font-size: 18px;
   text-align: center;
 }
 
 .album-artist {
-  color: #888;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
 .playlist-play-btn {
-  background: #e2c044;
+  background: var(--accent);
   color: black;
   border: none;
   font-family: "Oswald", sans-serif;
@@ -749,7 +753,7 @@ footer.player-visible {
 }
 
 .playlist-play-btn:hover {
-  background: #d4b13e;
+  background: var(--accent-dark);
   transform: scale(1.05);
 }
 
@@ -785,18 +789,26 @@ footer.player-visible {
 }
 
 #settings .items::-webkit-scrollbar-track {
-  background: #2a2a2a;
+  background: var(--card);
   border-radius: 5px;
 }
 
 #settings .items::-webkit-scrollbar-thumb {
-  background: #e2c044;
+  background: var(--accent);
   border-radius: 5px;
-  border: 2px solid #2a2a2a;
+  border: 2px solid var(--card);
 }
 
 #settings .items::-webkit-scrollbar-thumb:hover {
-  background: #d4b13e;
+  background: var(--accent-dark);
+}
+
+#settings hr {
+  width: 80%;
+  max-width: 800px;
+  border: none;
+  border-top: 2px solid var(--blade-active);
+  margin: 40px 0 30px 0;
 }
 
 #libPath {
@@ -808,7 +820,7 @@ footer.player-visible {
 }
 
 #libPath label {
-  color: white;
+  color: var(--text);
   font-family: oswald;
   font-size: 16px;
   letter-spacing: 0.05em;
@@ -817,9 +829,9 @@ footer.player-visible {
 #libPath textarea {
   height: 20px;
   text-align: center;
-  background: #b094c7;
-  color: white;
-  border: 4px solid #483666;
+  background: var(--blade);
+  color: var(--text);
+  border: 4px solid var(--blade-active);
   border-radius: 20px;
   padding: 10px;
   font-family: monospace;
@@ -827,17 +839,17 @@ footer.player-visible {
   resize: none;
   white-space: nowrap;
   overflow-y: hidden;
-  scrollbar-color: #483666 #b094c7;
+  scrollbar-color: var(--blade-active) var(--blade);
   scrollbar-width: thin;
 }
 
 #libPath textarea:focus {
   outline: none;
-  border-color: white;
+  border-color: var(--text);
 }
 
 #libPath button {
-  background: #e2c044;
+  background: var(--accent);
   color: black;
   border: solid black 4px;
   font-family: "Oswald", sans-serif;
@@ -851,7 +863,7 @@ footer.player-visible {
 }
 
 #libPath button:hover {
-  background: #d4b13e;
+  background: var(--accent-dark);
   transform: scale(1.03);
 }
 
@@ -860,8 +872,8 @@ footer.player-visible {
 }
 
 #applyPath {
-  background: #483666;
-  color: white;
+  background: var(--blade-active);
+  color: var(--text);
 }
 
 #applyPath:hover {
@@ -870,7 +882,7 @@ footer.player-visible {
 
 #clearLibrary {
   background: #8b2020;
-  color: white;
+  color: var(--text);
 }
 
 #clearLibrary:hover {
@@ -923,7 +935,7 @@ footer.player-visible {
   background: rgba(0, 0, 0, 0.6);
   border: 1px solid rgba(226, 192, 68, 0.4);
   border-top: none;
-  color: #e2c044;
+  color: var(--accent);
   font-family: oswald;
   font-size: 13px;
   letter-spacing: 0.1em;
@@ -939,7 +951,7 @@ footer.player-visible {
 }
 
 #preset-current-name {
-  color: white;
+  color: var(--text);
   max-width: 200px;
   display: inline-block;
   overflow: hidden;
@@ -972,7 +984,7 @@ footer.player-visible {
   width: 4px;
 }
 #preset-dropdown::-webkit-scrollbar-thumb {
-  background: #e2c044;
+  background: var(--accent);
   border-radius: 10px;
 }
 
@@ -995,11 +1007,11 @@ footer.player-visible {
 
 .preset-button:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: white;
+  color: var(--text);
 }
 
 .preset-button.active-preset {
-  background: #e2c044;
+  background: var(--accent);
   color: black;
   font-weight: bold;
 }
@@ -1020,16 +1032,16 @@ footer.player-visible {
   width: 10px;
 }
 .explore-browse::-webkit-scrollbar-track {
-  background: #2a2a2a;
+  background: var(--card);
   border-radius: 5px;
 }
 .explore-browse::-webkit-scrollbar-thumb {
-  background: #e2c044;
+  background: var(--accent);
   border-radius: 5px;
-  border: 2px solid #2a2a2a;
+  border: 2px solid var(--card);
 }
 .explore-browse::-webkit-scrollbar-thumb:hover {
-  background: #d4b13e;
+  background: var(--accent-dark);
 }
 
 #explore .items {
@@ -1057,22 +1069,22 @@ footer.player-visible {
 
 #explore-search {
   flex: 1;
-  background: #2a2a2a;
-  border: 2px solid #483666;
+  background: var(--card);
+  border: 2px solid var(--blade-active);
   border-radius: 20px;
   padding: 10px 20px;
-  color: white;
+  color: var(--text);
   font-family: source_serif_4, -apple-system, sans-serif;
   font-size: 14px;
   outline: none;
 }
 
 #explore-search:focus {
-  border-color: #e2c044;
+  border-color: var(--accent);
 }
 
 #explore-search-btn {
-  background: #e2c044;
+  background: var(--accent);
   color: black;
   border: none;
   font-family: oswald, sans-serif;
@@ -1086,7 +1098,7 @@ footer.player-visible {
 }
 
 #explore-search-btn:hover {
-  background: #d4b13e;
+  background: var(--accent-dark);
   transform: scale(1.03);
 }
 
@@ -1117,7 +1129,7 @@ footer.player-visible {
   width: 4px;
 }
 #explore-dropdown::-webkit-scrollbar-thumb {
-  background: #e2c044;
+  background: var(--accent);
   border-radius: 10px;
 }
 
@@ -1143,7 +1155,7 @@ footer.player-visible {
 
 .dropdown-item:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: white;
+  color: var(--text);
 }
 
 .dropdown-item img {
@@ -1152,7 +1164,7 @@ footer.player-visible {
   border-radius: 4px;
   object-fit: cover;
   flex-shrink: 0;
-  background: #2a2a2a;
+  background: var(--card);
 }
 
 .dropdown-info {
@@ -1164,7 +1176,7 @@ footer.player-visible {
 }
 
 .dropdown-name {
-  color: white;
+  color: var(--text);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1172,7 +1184,7 @@ footer.player-visible {
 }
 
 .dropdown-meta {
-  color: #888;
+  color: var(--text-muted);
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1195,12 +1207,12 @@ footer.player-visible {
   width: 80%;
   max-width: 800px;
   margin-top: 40px;
-  border-top: 2px solid #483666;
+  border-top: 2px solid var(--blade-active);
   padding-top: 30px;
 }
 
 #spotifyAuth label {
-  color: white;
+  color: var(--text);
   font-family: oswald;
   font-size: 16px;
   letter-spacing: 0.05em;
@@ -1209,9 +1221,9 @@ footer.player-visible {
 #spotifyAuth textarea {
   height: 20px;
   text-align: center;
-  background: #b094c7;
-  color: white;
-  border: 4px solid #483666;
+  background: var(--blade);
+  color: var(--text);
+  border: 4px solid var(--blade-active);
   border-radius: 20px;
   padding: 10px;
   font-family: monospace;
@@ -1219,18 +1231,18 @@ footer.player-visible {
   resize: none;
   white-space: nowrap;
   overflow-y: hidden;
-  scrollbar-color: #483666 #b094c7;
+  scrollbar-color: var(--blade-active) var(--blade);
   scrollbar-width: thin;
 }
 
 #spotifyAuth textarea:focus {
   outline: none;
-  border-color: white;
+  border-color: var(--text);
 }
 
 #spotifyAuth button {
   background: #94c798;
-  color: white;
+  color: var(--text);
   border: solid black 4px;
   font-family: "Oswald", sans-serif;
   font-size: 13px;
@@ -1293,4 +1305,81 @@ footer.player-visible {
   background: rgba(139, 32, 32, 0.92);
   color: #f87171;
   border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+/* UI Settings */
+#uiSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 80%;
+  max-width: 800px;
+}
+
+#uiSettings label {
+  color: var(--text);
+  font-family: oswald;
+  font-size: 16px;
+  letter-spacing: 0.05em;
+}
+
+#theme-strip {
+  display: flex;
+  width: 80%;
+  max-width: 800px;
+  height: 48px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 3px solid var(--blade-active);
+}
+
+.theme-swatch {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 4px;
+}
+
+.theme-swatch-label {
+  font-family: oswald, sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  mix-blend-mode: difference;
+  user-select: none;
+}
+
+#theme-select {
+  background: var(--blade);
+  color: var(--text);
+  border: 4px solid var(--blade-active);
+  border-radius: 20px;
+  font-family: oswald, sans-serif;
+  font-size: 14px;
+  padding: 10px 20px;
+  cursor: pointer;
+  outline: none;
+}
+
+#theme-select:focus {
+  border-color: var(--text);
+}
+
+#spacing-select {
+  background: var(--blade);
+  color: var(--text);
+  border: 4px solid var(--blade-active);
+  border-radius: 20px;
+  font-family: oswald, sans-serif;
+  font-size: 14px;
+  padding: 10px 20px;
+  cursor: pointer;
+  outline: none;
+}
+
+#spacing-select:focus {
+  border-color: var(--text);
 }

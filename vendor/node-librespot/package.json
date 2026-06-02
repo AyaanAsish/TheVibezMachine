@@ -45,6 +45,10 @@
   "engines": {
     "node": ">=18"
   },
+  "os": [
+    "darwin",
+    "linux"
+  ],
   "devDependencies": {
     "@napi-rs/cli": "^2.18.4",
     "@tsconfig/node20": "^20.1.2",

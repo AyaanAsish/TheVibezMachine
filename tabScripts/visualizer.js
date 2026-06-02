@@ -5,15 +5,12 @@ const resizeCanvas = (canvas, visualizer) => {
   if (!canvas) return;
   const width = canvas.clientWidth || 800;
   const height = canvas.clientHeight || 600;
-  const pixelRatio = window.devicePixelRatio || 1;
-  const targetWidth = Math.floor(width * pixelRatio);
-  const targetHeight = Math.floor(height * pixelRatio);
 
-  if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    if (visualizer && typeof visualizer.setInternalSize === "function") {
-      visualizer.setInternalSize(canvas.width, canvas.height);
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+    if (visualizer && typeof visualizer.setRendererSize === "function") {
+      visualizer.setRendererSize(width, height);
     }
   }
 };
@@ -49,7 +46,7 @@ const initVisualizer = () => {
 
   resizeCanvas(canvas, visualizer);
 
-  const presetKeys = Object.keys(presets).slice(0, 10);
+  const presetKeys = Object.keys(presets);
   if (presetKeys.length > 0) {
     visualizer.loadPreset(presets[presetKeys[0]], 0.0);
   }

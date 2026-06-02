@@ -20,10 +20,18 @@
     "url": "https://github.com/AyaanAsish/TheVibezMachine/issues"
   },
   "homepage": "https://github.com/AyaanAsish/TheVibezMachine#readme",
+  "build": {
+    "appId": "com.ayyan.thevibizmachine",
+    "productName": "TheVibezMachine",
+    "win": {
+      "target": "portable"
+    }
+  },
   "devDependencies": {
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.4",
-    "electron": "^34.5.8"
+    "electron": "^34.5.8",
+    "electron-builder": "^26.8.1"
   },
   "dependencies": {
     "better-sqlite3": "^12.10.0",

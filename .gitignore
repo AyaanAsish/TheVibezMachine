@@ -13,3 +13,4 @@ vendor/node-librespot/node_modules/
 handpicked.txt 
 forge.config.js
 out/
+dist/

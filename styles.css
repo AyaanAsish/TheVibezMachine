@@ -44,7 +44,7 @@ html {
 #app {
   display: flex;
   flex: 1;
-  background-image: radial-gradient(var(--body), var(--blade-active));
+  background-image: radial-gradient(var(--body), var(--bg));
   position: relative;
   overflow: hidden;
   border-radius: 8px;
@@ -609,15 +609,16 @@ footer.player-visible {
 }
 
 .tracklist-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--accent), transparent 10%);
 }
 
 .tracklist-item.active {
-  background: rgba(226, 192, 68, 0.2);
+  background: color-mix(in srgb, var(--accent), transparent 20%);
+
 }
 
 .tracklist-item.active .track-title {
-  color: var(--accent);
+  color: var(--text);
 }
 
 .track-number {
@@ -831,7 +832,7 @@ footer.player-visible {
   text-align: center;
   background: var(--blade);
   color: var(--text);
-  border: 4px solid var(--blade-active);
+  border: 4px solid var(--highlight);
   border-radius: 20px;
   padding: 10px;
   font-family: monospace;
@@ -839,7 +840,7 @@ footer.player-visible {
   resize: none;
   white-space: nowrap;
   overflow-y: hidden;
-  scrollbar-color: var(--blade-active) var(--blade);
+  scrollbar-color: var(--highlight) var(--blade);
   scrollbar-width: thin;
 }
 
@@ -1223,7 +1224,7 @@ footer.player-visible {
   text-align: center;
   background: var(--blade);
   color: var(--text);
-  border: 4px solid var(--blade-active);
+  border: 4px solid var(--highlight);
   border-radius: 20px;
   padding: 10px;
   font-family: monospace;
@@ -1231,7 +1232,7 @@ footer.player-visible {
   resize: none;
   white-space: nowrap;
   overflow-y: hidden;
-  scrollbar-color: var(--blade-active) var(--blade);
+  scrollbar-color: var(--highlight) var(--blade);
   scrollbar-width: thin;
 }
 
@@ -1330,7 +1331,7 @@ footer.player-visible {
   height: 48px;
   border-radius: 10px;
   overflow: hidden;
-  border: 3px solid var(--blade-active);
+  border: 3px solid var(--highlight);
 }
 
 .theme-swatch {
@@ -1355,7 +1356,7 @@ footer.player-visible {
 #theme-select {
   background: var(--blade);
   color: var(--text);
-  border: 4px solid var(--blade-active);
+  border: 4px solid var(--highlight);
   border-radius: 20px;
   font-family: oswald, sans-serif;
   font-size: 14px;
@@ -1371,7 +1372,7 @@ footer.player-visible {
 #spacing-select {
   background: var(--blade);
   color: var(--text);
-  border: 4px solid var(--blade-active);
+  border: 4px solid var(--highlight);
   border-radius: 20px;
   font-family: oswald, sans-serif;
   font-size: 14px;

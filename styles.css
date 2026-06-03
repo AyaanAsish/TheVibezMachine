@@ -212,7 +212,7 @@ footer.player-visible {
   transform: translateX(-50%);
   width: 160px;
   height: 32px;
-  background: var(--blade-active);
+  background: var(--accent);
   border-radius: 8px 8px 0 0;
   z-index: 999;
   display: flex;
@@ -230,11 +230,11 @@ footer.player-visible {
 }
 
 #footer-trigger:hover {
-  background: #5a467d;
+  background: var(--accent-dark);
 }
 
 #trigger-label {
-  color: var(--blade);
+  color: var(--text);
   font-family: oswald;
   font-size: 12px;
   letter-spacing: 0.08em;

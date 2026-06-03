@@ -61,10 +61,6 @@ function resolveNativeBinding() {
     if (node_fs_1.default.existsSync(localBuildPath)) {
         return localBuildPath;
     }
-    const rebuildRootPath = node_path_1.default.join(__dirname, '..', 'librespot_addon.node');
-    if (node_fs_1.default.existsSync(rebuildRootPath)) {
-        return rebuildRootPath;
-    }
     throw new Error(`librespot_addon.node not found for ${platformArchABI()}. ` +
         'Install a prebuilt binary, build locally with "npm run build", ' +
         'or point LOX_LIBRESPOT_ADDON_PATH to the compiled addon.');

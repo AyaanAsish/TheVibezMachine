@@ -391,4 +391,4 @@ function registerSpotifyIpcs(ipcMain) {
   ipcMain.handle('spotify-disconnect', spotifyDisconnect)
 }
 
-module.exports = { registerSpotifyIpcs, getSpotifyCredentialsRaw, onAuthSuccess, ensureValidToken }
+module.exports = { registerSpotifyIpcs, getSpotifyCredentialsRaw, onAuthSuccess, ensureValidToken, setReconnectFn }

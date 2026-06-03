@@ -17,12 +17,12 @@
   ],
   "scripts": {
     "build": "npm run clean && npm run build:native && npm run build:types",
-    "build:debug": "npm run clean && napi build && make-dir dist && move /Y librespot_addon.node dist\\ && npm run build:types",
-    "build:native": "napi build --release --strip && make-dir dist && move /Y librespot_addon.node dist\\",
+    "build:debug": "npm run clean && napi build && mkdir -p dist && mv -f librespot_addon.node dist/ && npm run build:types",
+    "build:native": "napi build --release --strip && mkdir -p dist && mv -f librespot_addon.node dist/",
     "build:prebuild": "node scripts/prebuild.js",
-    "build:types": "tsc -p tsconfig.build.json && rimraf index.d.ts",
-    "build:types:clean": "rimraf dist && npm run build:types",
-    "clean": "rimraf build dist prebuilds target index.d.ts",
+    "build:types": "tsc -p tsconfig.build.json && rm -f index.d.ts",
+    "build:types:clean": "rm -rf dist && npm run build:types",
+    "clean": "rm -rf build dist prebuilds *.log *.node target index.d.ts",
     "test": "node scripts/test.js",
     "test:connect": "node scripts/test-connect.js",
     "test:service": "node scripts/test-service.js",
@@ -45,16 +45,10 @@
   "engines": {
     "node": ">=18"
   },
-  "os": [
-    "darwin",
-    "linux"
-  ],
   "devDependencies": {
     "@napi-rs/cli": "^2.18.4",
     "@tsconfig/node20": "^20.1.2",
     "@types/node": "^22.19.3",
-    "make-dir-cli": "^3.1.0",
-    "rimraf": "^5.0.5",
     "typescript": "^5.4.0"
   },
   "dependencies": {

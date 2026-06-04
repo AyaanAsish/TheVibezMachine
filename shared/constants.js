@@ -32,10 +32,10 @@ const THEMES = {
     "--accent-dark": "#a0658d",
     "--highlight": "#445D52",
     "--bg": "#77867F",
-    "--body": "#445D52",
-    "--card": "#2a2a2a",
+    "--body": "#2f3f38",
+    "--card": "#445D52",
     "--text": "#ffffff",
-    "--text-muted": "#888888",
+    "--text-muted": "#d69ec4",
   }
 }
 

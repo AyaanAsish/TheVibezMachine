@@ -127,7 +127,7 @@ html {
   top: 0;
   bottom: 0;
   width: 46px;
-  border: 4px solid black;
+  border: 4px solid var(--body);
   background: var(--blade);
   display: flex;
   flex-direction: column;
@@ -159,7 +159,7 @@ html {
   position: relative;
   width: 100%;
   height: 50%;
-  background: black;
+  background: var(--body);
   clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 85%);
 }
 
@@ -852,7 +852,7 @@ footer.player-visible {
 #libPath button {
   background: var(--accent);
   color: black;
-  border: solid black 4px;
+  border: solid var(--accent-dark) 4px;
   font-family: "Oswald", sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -1244,7 +1244,7 @@ footer.player-visible {
 #spotifyAuth button {
   background: #94c798;
   color: var(--text);
-  border: solid black 4px;
+  border: solid var(--body) 4px;
   font-family: "Oswald", sans-serif;
   font-size: 13px;
   font-weight: 600;

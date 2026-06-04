@@ -53,32 +53,71 @@ function initSettings() {
     renderThemeStrip(name)
   })
 
-  const spacingSelect = document.getElementById('spacing-select')
-  if (spacingSelect) {
-    const currentSpacing = (window.SpacingEngine ? window.SpacingEngine.getPresetName() : null) || 'Default'
+  // Spacing slider
+  const SNAP_POINTS = ['Compact', 'Default', 'Relaxed']
+  const thumb = document.getElementById('spacing-thumb')
+  const fill = document.getElementById('spacing-fill')
+  const track = document.getElementById('spacing-track')
+  const spacingLabel = document.getElementById('spacing-label')
 
-    for (const name of Object.keys(window.SPACING_PRESETS || {})) {
-      const option = document.createElement('option')
-      option.value = name
-      option.textContent = name
-      if (name === currentSpacing) option.selected = true
-      spacingSelect.appendChild(option)
+  if (thumb && track) {
+    const nearestPreset = (percent) => {
+      const i = Math.round(percent / 100 * (SNAP_POINTS.length - 1))
+      return SNAP_POINTS[Math.max(0, Math.min(SNAP_POINTS.length - 1, i))]
     }
 
-    spacingSelect.addEventListener('mouseover', (e) => {
-      if (e.target.tagName === 'OPTION') {
-        const name = e.target.value
-        if (window.SpacingEngine) window.SpacingEngine.previewSpacing(name)
+    const setSliderTo = (percent) => {
+      thumb.style.left = percent + '%'
+      fill.style.width = percent + '%'
+      if (spacingLabel) spacingLabel.textContent = nearestPreset(percent)
+    }
+
+    let startPercent = 50
+    if (window.SpacingEngine) {
+      const blend = window.SpacingEngine.getBlendPercent()
+      if (typeof blend === 'number') {
+        startPercent = blend
+      } else {
+        const saved = window.SpacingEngine.getPresetName() || 'Default'
+        const i = SNAP_POINTS.indexOf(saved)
+        startPercent = i === -1 ? 50 : (i / (SNAP_POINTS.length - 1)) * 100
       }
+    }
+    setSliderTo(startPercent)
+
+    let dragging = false
+
+    const getPercent = (clientX) => {
+      const rect = track.getBoundingClientRect()
+      const raw = (clientX - rect.left) / rect.width * 100
+      return Math.max(0, Math.min(100, raw))
+    }
+
+    thumb.addEventListener('mousedown', (e) => {
+      dragging = true
+      e.preventDefault()
     })
 
-    spacingSelect.addEventListener('mouseleave', () => {
-      if (window.SpacingEngine) window.SpacingEngine.restoreSpacing()
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return
+      const pct = getPercent(e.clientX)
+      setSliderTo(pct)
+      if (window.SpacingEngine) window.SpacingEngine.previewBlend(pct)
     })
 
-    spacingSelect.addEventListener('change', (e) => {
-      const name = e.target.value
-      if (window.SpacingEngine) window.SpacingEngine.commitSpacing(name)
+    document.addEventListener('mouseup', (e) => {
+      if (!dragging) return
+      dragging = false
+      const pct = getPercent(e.clientX)
+      setSliderTo(pct)
+      if (window.SpacingEngine) window.SpacingEngine.commitBlend(pct)
+    })
+
+    track.addEventListener('click', (e) => {
+      if (e.target === thumb) return
+      const pct = getPercent(e.clientX)
+      setSliderTo(pct)
+      if (window.SpacingEngine) window.SpacingEngine.commitBlend(pct)
     })
   }
 }

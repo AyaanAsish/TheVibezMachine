@@ -300,9 +300,13 @@ ipcMain.handle('get-spacing', async () => {
   }
 })
 
-ipcMain.handle('set-spacing', async (_event, presetName) => {
+ipcMain.handle('set-spacing', async (_event, payload) => {
   const configPath = path.join(app.getPath('userData'), 'spacing.json')
-  await fs.writeFile(configPath, JSON.stringify({ presetName }), 'utf8')
+  if (typeof payload === 'object' && payload !== null && typeof payload.percent === 'number') {
+    await fs.writeFile(configPath, JSON.stringify({ percent: payload.percent }), 'utf8')
+  } else {
+    await fs.writeFile(configPath, JSON.stringify({ presetName: payload }), 'utf8')
+  }
   return { success: true }
 })
 

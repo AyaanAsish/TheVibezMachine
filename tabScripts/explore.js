@@ -41,6 +41,12 @@
     currentGap = parseInt(val, 10) || 24;
   }
 
+  let currentSectionGap = 16;
+  function updateSectionGap() {
+    const val = getComputedStyle(document.documentElement).getPropertyValue('--explore-section-gap');
+    currentSectionGap = parseInt(val, 10) || 16;
+  }
+
   async function getCredentials() {
     try {
       credentials = await window.electronAPI.getSpotifyCredentials();
@@ -423,20 +429,44 @@
 
   function resize() {
     updateGap();
+    updateSectionGap();
     const container = canvas.parentElement;
     if (!container) return;
     const dpr = window.devicePixelRatio || 1;
+
+    // CSS width of the canvas = container content width minus browse padding (20+20)
     const cssWidth = Math.max(1, container.clientWidth - 40);
     const maxCols = Math.max(1, Math.floor(cssWidth / (TILE_W + currentGap)));
 
     const albumsRows = savedAlbums.length ? Math.ceil(savedAlbums.length / maxCols) : 0;
     const playlistsRows = savedPlaylists.length ? Math.ceil(savedPlaylists.length / maxCols) : 0;
-    let cssHeight = 40;
-    if (savedAlbums.length) cssHeight += HEADER_H + albumsRows * (TILE_H + currentGap);
-    if (savedPlaylists.length) cssHeight += HEADER_H + playlistsRows * (TILE_H + currentGap);
-    cssHeight = Math.max(cssHeight, container.clientHeight - 40);
 
-    canvas.style.width = cssWidth + 'px';
+    // Exact content height matching how draw() lays sections out
+    let contentHeight = 20; // matches draw()'s nextY = 20
+    if (savedAlbums.length) {
+      contentHeight += HEADER_H + Math.max(0, albumsRows - 1) * (TILE_H + currentGap) + TILE_H;
+    }
+    if (savedPlaylists.length) {
+      if (savedAlbums.length) contentHeight += currentSectionGap;
+      contentHeight += HEADER_H + Math.max(0, playlistsRows - 1) * (TILE_H + currentGap) + TILE_H;
+    }
+
+    // One-page minimum: fill the viewport exactly when content is sparse,
+    // so there is no scrollbar unless items genuinely extend past the page.
+    const searchEl = document.getElementById('explore-search-container');
+    const searchH = searchEl ? searchEl.offsetHeight : 0;
+    const browseStyle = window.getComputedStyle(container);
+    const searchStyle = searchEl ? window.getComputedStyle(searchEl) : null;
+    const canvasStyle = window.getComputedStyle(canvas);
+    const overhead =
+      (parseFloat(browseStyle.paddingTop) || 0) +
+      (parseFloat(browseStyle.paddingBottom) || 0) +
+      (parseFloat(searchStyle?.marginBottom) || 0) +
+      (parseFloat(canvasStyle.marginBottom) || 0);
+    const onePageMin = Math.max(1, container.clientHeight - overhead - searchH);
+
+    const cssHeight = Math.max(contentHeight, onePageMin);
+
     canvas.style.height = cssHeight + 'px';
     canvas.width = Math.max(1, Math.floor(cssWidth * dpr));
     canvas.height = Math.max(1, Math.floor(cssHeight * dpr));
@@ -471,19 +501,21 @@
     });
   }
 
-  function drawSection(items, title, startY, cols) {
-    const startX = 20;
+  function drawSection(items, title, startY, cols, canvasWidth) {
+    const titleX = 20;
+    const totalGridWidth = cols * TILE_W + (cols - 1) * currentGap;
+    const gridStartX = Math.max(titleX, (canvasWidth - totalGridWidth) / 2);
 
     ctx.font = 'bold 18px oswald, sans-serif';
     ctx.fillStyle = '#e2c044';
-    ctx.textAlign = 'left';
-    ctx.fillText(title, startX, startY + 24);
+    ctx.textAlign = 'center';
+    ctx.fillText(title, canvasWidth / 2, startY + 24);
 
     let y = startY + HEADER_H;
     items.forEach((item, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const x = startX + col * (TILE_W + currentGap);
+      const x = gridStartX + col * (TILE_W + currentGap);
       const itemY = y + row * (TILE_H + currentGap);
       const isHovered = hoveredItem === item;
 
@@ -527,11 +559,13 @@
       if (isHovered) ctx.restore();
     });
 
-    return y + Math.ceil(items.length / cols) * (TILE_H + currentGap);
+    const rows = Math.ceil(items.length / cols);
+    return y + (rows - 1) * (TILE_H + currentGap) + TILE_H;
   }
 
   function draw() {
     updateGap();
+    updateSectionGap();
     const prevScale = currentHoverScale;
     const target = hoveredItem ? HOVER_SCALE : 1;
     currentHoverScale += (target - currentHoverScale) * LERP_FACTOR;
@@ -577,11 +611,11 @@
     const cols = Math.max(1, Math.floor(cssW / (TILE_W + currentGap)));
     let nextY = 20;
     if (savedAlbums.length) {
-      nextY = drawSection(savedAlbums, 'Saved Albums', nextY, cols);
-      nextY += currentGap;
+      nextY = drawSection(savedAlbums, 'Saved Albums', nextY, cols, cssW);
+      nextY += currentSectionGap;
     }
     if (savedPlaylists.length) {
-      drawSection(savedPlaylists, 'Saved Playlists', nextY, cols);
+      drawSection(savedPlaylists, 'Saved Playlists', nextY, cols, cssW);
     }
   }
 

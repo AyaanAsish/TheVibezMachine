@@ -1086,7 +1086,7 @@ footer.player-visible {
 
 #explore-search-btn {
   background: var(--accent);
-  color: black;
+  color: var(--body);
   border: none;
   font-family: oswald, sans-serif;
   font-size: 14px;

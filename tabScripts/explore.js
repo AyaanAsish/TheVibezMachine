@@ -1,3 +1,8 @@
+const getAccentColor = () => {
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  return color || '#ffffff'; 
+};
+
 (function () {
   const canvas = document.getElementById('explore-canvas');
   if (!canvas) return;
@@ -239,7 +244,7 @@
     // Error message (if any)
     if (errorMsg) {
       const errDiv = document.createElement('div');
-      errDiv.style.color = '#e2c044';
+      errDiv.style.color = getAccentColor();
       errDiv.style.padding = '10px 15px';
       errDiv.style.fontFamily = 'oswald, sans-serif';
       errDiv.textContent = errorMsg;
@@ -475,7 +480,7 @@
     const startX = 20;
 
     ctx.font = 'bold 18px oswald, sans-serif';
-    ctx.fillStyle = '#e2c044';
+    ctx.fillStyle = getAccentColor();
     ctx.textAlign = 'left';
     ctx.fillText(title, startX, startY + 24);
 
@@ -513,7 +518,7 @@
         const label = item.type === 'Saved Playlist' ? 'Playlist' : item.type;
         ctx.fillStyle = 'rgba(0,0,0,0.75)';
         ctx.fillRect(x, itemY, 52, 20);
-        ctx.fillStyle = '#e2c044';
+        ctx.fillStyle = getAccentColor();
         ctx.font = '10px oswald, sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText(label, x + 4, itemY + 14);
@@ -553,7 +558,7 @@
     }
 
     if (apiError) {
-      ctx.fillStyle = '#e2c044';
+      ctx.fillStyle = getAccentColor();
       ctx.font = 'bold 16px source_serif_4, serif';
       ctx.textAlign = 'center';
       ctx.fillText('Error:', cssW / 2, cssH / 2 - 20);

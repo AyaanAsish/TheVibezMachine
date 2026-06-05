@@ -537,7 +537,7 @@ const getAccentColor = () => {
       const label = item.type === 'Saved Playlist' ? 'Playlist' : item.type;
       ctx.fillStyle = 'rgba(0,0,0,0.75)';
       ctx.fillRect(x, y, 52, 20);
-      ctx.fillStyle = '#e2c044';
+      ctx.fillStyle = getAccentColor();
       ctx.font = '10px oswald, sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText(label, x + 4, y + 14);
@@ -556,7 +556,7 @@ const getAccentColor = () => {
     const gridStartX = Math.max(20, (canvasWidth - gridWidth) / 2);
 
     ctx.font = 'bold 18px oswald, sans-serif';
-    ctx.fillStyle = '#e2c044';
+    ctx.fillStyle = getAccentColor();
     ctx.textAlign = 'center';
     ctx.fillText(title, canvasWidth / 2, startY + 24);
 
@@ -583,7 +583,7 @@ const getAccentColor = () => {
     const cy = cssH / 2 + yOffset;
 
     if (subtextLines.length) {
-      ctx.fillStyle = '#e2c044';
+      ctx.fillStyle = getAccentColor();
       ctx.font = 'bold 16px source_serif_4, serif';
       ctx.textAlign = 'center';
       ctx.fillText(text, cx, cy - 20);

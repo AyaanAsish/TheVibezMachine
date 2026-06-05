@@ -10,6 +10,16 @@ const fs = require('fs/promises')
 const path = require('path')
 const { app } = require('electron')
 
+function friendlyApiError(status, body) {
+  const b = String(body || '').toLowerCase()
+  if (status === 401 || b.includes('invalid_client')) return 'Invalid Spotify credentials - check your Client ID and Secret'
+  if (status === 403) return 'You don\'t have permission for this on Spotify'
+  if (status === 404) return 'Spotify device not found - your network may be blocking Spotify'
+  if (status === 429) return 'Too many requests - wait a moment and try again'
+  if (status >= 500) return 'Spotify is having issues - try again in a moment'
+  return 'Something went wrong - try again'
+}
+
 const DEVICE_ID_FILE = path.join(app.getPath('userData'), '.spotify-device-id.json')
 const CREDENTIALS_FILE = path.join(app.getPath('userData'), '.spotify-librespot-creds.json')
 let librespotHost = null
@@ -263,7 +273,7 @@ function stopLibrespot() {
 async function reconnectLibrespot() {
   if (reconnectInProgress || !currentWindow || currentWindow.isDestroyed()) return false
   if (Date.now() - lastReconnectFailTime < RECONNECT_COOLDOWN_MS) {
-    console.warn('[librespot-main] Skipping reconnect — cooldown active')
+    console.warn('[librespot-main] Skipping reconnect - cooldown active')
     return false
   }
   reconnectInProgress = true
@@ -274,7 +284,7 @@ async function reconnectLibrespot() {
       console.log('[librespot-main] Reconnection successful')
       return true
     }
-    console.warn('[librespot-main] Reconnection failed — no librespot host')
+    console.warn('[librespot-main] Reconnection failed - no librespot host')
     return false
   } catch (err) {
     console.error('[librespot-main] Reconnection error:', err.message)
@@ -294,8 +304,8 @@ function clearReconnectCooldown() {
 
 async function spotifyApiPlayPause(action) {
   const creds = getSpotifyCredentialsRaw()
-  if (!creds) return { success: false, error: 'Not authenticated' }
-  if (!deviceId) return { success: false, error: 'No device ID' }
+  if (!creds) return { success: false, error: 'Sign in to Spotify first' }
+  if (!deviceId) return { success: false, error: 'No Spotify device connected - try reconnecting' }
   try {
     await ensureValidToken()
     const url = 'https://api.spotify.com/v1/me/player/' + action + '?device_id=' + encodeURIComponent(deviceId)
@@ -308,20 +318,20 @@ async function spotifyApiPlayPause(action) {
       return { success: true, state: action === 'play' ? 'playing' : 'paused' }
     }
     if (res.status === 404) {
-      return { success: false, error: 'NO_ACTIVE_DEVICE', status: 404 }
+      return { success: false, error: 'Spotify device not found - your network may be blocking Spotify', status: 404 }
     }
     const err = await res.text()
-    return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+    return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
-    if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
-    return { success: false, error: err.message }
+    if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
+    return { success: false, error: 'Something went wrong - try again' }
   }
 }
 
 async function spotifyApiSeek(positionMs) {
   const creds = getSpotifyCredentialsRaw()
-  if (!creds) return { success: false, error: 'Not authenticated' }
-  if (!deviceId) return { success: false, error: 'No device ID' }
+  if (!creds) return { success: false, error: 'Sign in to Spotify first' }
+  if (!deviceId) return { success: false, error: 'No Spotify device connected - try reconnecting' }
   try {
     await ensureValidToken()
     const url = 'https://api.spotify.com/v1/me/player/seek?position_ms=' + Math.floor(positionMs) + '&device_id=' + encodeURIComponent(deviceId)
@@ -331,20 +341,20 @@ async function spotifyApiSeek(positionMs) {
       return { success: true }
     }
     if (res.status === 404) {
-      return { success: false, error: 'NO_ACTIVE_DEVICE', status: 404 }
+      return { success: false, error: 'Spotify device not found - your network may be blocking Spotify', status: 404 }
     }
     const err = await res.text()
-    return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+    return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
-    if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
-    return { success: false, error: err.message }
+    if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
+    return { success: false, error: 'Something went wrong - try again' }
   }
 }
 
 async function spotifyApiPlayTrack(trackUri, positionMs, uris) {
   const creds = getSpotifyCredentialsRaw()
-  if (!creds) return { success: false, error: 'Not authenticated' }
-  if (!deviceId) return { success: false, error: 'No device ID' }
+  if (!creds) return { success: false, error: 'Sign in to Spotify first' }
+  if (!deviceId) return { success: false, error: 'No Spotify device connected - try reconnecting' }
   try {
     await ensureValidToken()
     const url = 'https://api.spotify.com/v1/me/player/play?device_id=' + encodeURIComponent(deviceId)
@@ -364,13 +374,13 @@ async function spotifyApiPlayTrack(trackUri, positionMs, uris) {
       return { success: true, state: 'playing' }
     }
     if (res.status === 404) {
-      return { success: false, error: 'NO_ACTIVE_DEVICE', status: 404 }
+      return { success: false, error: 'Spotify device not found - your network may be blocking Spotify', status: 404 }
     }
     const err = await res.text()
-    return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+    return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
-    if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
-    return { success: false, error: err.message }
+    if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
+    return { success: false, error: 'Something went wrong - try again' }
   }
 }
 
@@ -379,7 +389,7 @@ function registerLibrespotIpcs(ipcMain) {
     let apiResult = await spotifyApiPlayPause('pause')
 
     // Auto-reconnect if the device was dropped (404 = no active device)
-    if (apiResult.error === 'NO_ACTIVE_DEVICE') {
+    if (apiResult.status === 404) {
       const reconnected = await reconnectLibrespot()
       if (reconnected) {
         apiResult = await spotifyApiPlayPause('pause')
@@ -392,20 +402,20 @@ function registerLibrespotIpcs(ipcMain) {
       librespotHost.pause()
       return { success: true, state: 'paused' }
     } catch (e) {
-      return { success: false, error: e.message }
+      return { success: false, error: 'Something went wrong - try again' }
     }
   })
 
   ipcMain.handle('librespot-play', async (_event, positionMs, trackUri, uris) => {
     // Always start playback from position 0, then seek to the desired
     // position. The librespot Connect device silently fails to resume
-    // from non-zero positions after a near-end pause — the API returns
+    // from non-zero positions after a near-end pause - the API returns
     // 204 but the device never starts. Starting from 0 wakes the device
     // reliably, and seeking on an already-active device works correctly.
     if (trackUri && positionMs != null) {
       let explicitResult = await spotifyApiPlayTrack(trackUri, 0, uris)
       console.log('[librespot-main] playTrack(0) result:', JSON.stringify(explicitResult))
-      if (explicitResult.error === 'NO_ACTIVE_DEVICE') {
+      if (explicitResult.status === 404) {
         const reconnected = await reconnectLibrespot()
         if (reconnected) {
           explicitResult = await spotifyApiPlayTrack(trackUri, 0, uris)
@@ -428,7 +438,7 @@ function registerLibrespotIpcs(ipcMain) {
     // handler will issue a corrective seek after the playing event arrives.
     let apiResult = await spotifyApiPlayPause('play')
 
-    if (apiResult.error === 'NO_ACTIVE_DEVICE') {
+    if (apiResult.status === 404) {
       const reconnected = await reconnectLibrespot()
       if (reconnected) {
         apiResult = await spotifyApiPlayPause('play')
@@ -441,14 +451,14 @@ function registerLibrespotIpcs(ipcMain) {
       librespotHost.play()
       return { success: true, state: 'playing' }
     } catch (e) {
-      return { success: false, error: e.message }
+      return { success: false, error: 'Something went wrong - try again' }
     }
   })
 
   ipcMain.handle('librespot-next', async () => {
-    if (!deviceId) return { success: false, error: 'No device ID' }
+    if (!deviceId) return { success: false, error: 'No Spotify device connected - try reconnecting' }
     const creds = getSpotifyCredentialsRaw()
-    if (!creds) return { success: false, error: 'Not authenticated' }
+    if (!creds) return { success: false, error: 'Sign in to Spotify first' }
     try {
       await ensureValidToken()
       const res = await fetchWithTimeout('https://api.spotify.com/v1/me/player/next?device_id=' + encodeURIComponent(deviceId), {
@@ -463,21 +473,21 @@ function registerLibrespotIpcs(ipcMain) {
           librespotHost.next()
           return { success: true }
         } catch (e) {
-          return { success: false, error: e.message }
+          return { success: false, error: 'Something went wrong - try again' }
         }
       }
       const err = await res.text()
-      return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+      return { success: false, error: friendlyApiError(res.status, err) }
     } catch (err) {
-      if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
-      return { success: false, error: err.message }
+      if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
+      return { success: false, error: 'Something went wrong - try again' }
     }
   })
 
   ipcMain.handle('librespot-prev', async () => {
-    if (!deviceId) return { success: false, error: 'No device ID' }
+    if (!deviceId) return { success: false, error: 'No Spotify device connected - try reconnecting' }
     const creds = getSpotifyCredentialsRaw()
-    if (!creds) return { success: false, error: 'Not authenticated' }
+    if (!creds) return { success: false, error: 'Sign in to Spotify first' }
     try {
       await ensureValidToken()
       const res = await fetchWithTimeout('https://api.spotify.com/v1/me/player/previous?device_id=' + encodeURIComponent(deviceId), {
@@ -492,21 +502,21 @@ function registerLibrespotIpcs(ipcMain) {
           librespotHost.prev()
           return { success: true }
         } catch (e) {
-          return { success: false, error: e.message }
+          return { success: false, error: 'Something went wrong - try again' }
         }
       }
       const err = await res.text()
-      return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+      return { success: false, error: friendlyApiError(res.status, err) }
     } catch (err) {
-      if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
-      return { success: false, error: err.message }
+      if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
+      return { success: false, error: 'Something went wrong - try again' }
     }
   })
 
   ipcMain.handle('librespot-seek', async (_event, positionMs) => {
-    if (!deviceId) return { success: false, error: 'No device ID' }
+    if (!deviceId) return { success: false, error: 'No Spotify device connected - try reconnecting' }
     const creds = getSpotifyCredentialsRaw()
-    if (!creds) return { success: false, error: 'Not authenticated' }
+    if (!creds) return { success: false, error: 'Sign in to Spotify first' }
     try {
       await ensureValidToken()
       const res = await fetchWithTimeout('https://api.spotify.com/v1/me/player/seek?position_ms=' + Math.floor(positionMs) + '&device_id=' + encodeURIComponent(deviceId), {
@@ -521,10 +531,10 @@ function registerLibrespotIpcs(ipcMain) {
       }
       const err = await res.text()
       console.warn('[librespot-main] seek error:', res.status, err)
-      return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+      return { success: false, error: friendlyApiError(res.status, err) }
     } catch (err) {
-      if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
-      return { success: false, error: err.message }
+      if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
+      return { success: false, error: 'Something went wrong - try again' }
     }
   })
 
@@ -534,7 +544,7 @@ function registerLibrespotIpcs(ipcMain) {
 
   ipcMain.handle('reconnect-librespot', async () => {
     const result = await reconnectLibrespot()
-    return result ? { success: true } : { success: false, error: 'Reconnection failed' }
+    return result ? { success: true } : { success: false, error: 'Could not reconnect to Spotify - try again' }
   })
 }
 

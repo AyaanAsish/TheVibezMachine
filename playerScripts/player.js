@@ -532,6 +532,8 @@ document.getElementById("applyPath").addEventListener("click", () => {
 
 // --- Settings: Clear Library ---
 document.getElementById("clearLibrary").addEventListener("click", async () => {
+  const ok = confirm("Clear your entire library? This can't be undone.");
+  if (!ok) return;
   await window.electronAPI.dbClearLibrary();
   pathInput.value = "";
   loadLibrary();
@@ -572,15 +574,17 @@ document
 document
   .getElementById("spotifyDisconnect")
   .addEventListener("click", async () => {
+    const ok = confirm("Disconnect Spotify? You'll need to sign in again to use it.");
+    if (!ok) return;
     try {
       const result = await window.electronAPI.spotifyDisconnect();
       if (result.success) {
         showToast("Spotify disconnected", "success");
       } else {
-        showToast("Could not disconnect from Spotify — try again", "error");
+        showToast("Could not disconnect from Spotify - try again", "error");
       }
     } catch (e) {
-      showToast("Could not disconnect from Spotify — try again", "error");
+      showToast("Could not disconnect from Spotify - try again", "error");
     }
   });
 
@@ -620,23 +624,23 @@ function stopSpotifyPositionTicker() {
 function friendlySpotifyError(msg) {
   if (!msg) return 'Something went wrong with Spotify'
   const m = msg.toLowerCase()
-  if (m.includes('access_denied')) return 'Spotify access was denied — try connecting again'
-  if (m.includes('invalid state')) return 'Login check failed — try connecting again'
+  if (m.includes('access_denied')) return 'Spotify access was denied - try connecting again'
+  if (m.includes('invalid state')) return 'Login check failed - try connecting again'
   if (m.includes('token exchange') || m.includes('401') || m.includes('invalid_client'))
-    return 'Invalid Spotify credentials — check your Client ID and Secret'
+    return 'Invalid Spotify credentials - check your Client ID and Secret'
   if (m.includes('timed out') || m.includes('timeout') || m.includes('abort'))
-    return 'Connection timed out — check your internet and try again'
+    return 'Connection timed out - check your internet and try again'
   if (m.includes('eaddrinuse') || m.includes('callback server'))
-    return 'Could not start the login server — try again in a moment'
+    return 'Could not start the login server - try again in a moment'
   if (m.includes('not authenticated'))
     return 'Sign in to Spotify first'
   if (m.includes('403')) return 'You don\'t have permission for this on Spotify'
-  if (m.includes('404')) return 'Spotify device not found — your network may be blocking Spotify'
-  if (m.includes('429')) return 'Too many requests — wait a moment and try again'
-  if (m.includes('no device')) return 'No Spotify device connected — try reconnecting'
+  if (m.includes('404')) return 'Spotify device not found - your network may be blocking Spotify'
+  if (m.includes('429')) return 'Too many requests - wait a moment and try again'
+  if (m.includes('no device')) return 'No Spotify device connected - try reconnecting'
   if (m.includes('no track uri') || m.includes('no api endpoint'))
-    return 'Something went wrong — try again'
-  return 'Something went wrong with Spotify — try again'
+    return 'Something went wrong - try again'
+  return 'Something went wrong with Spotify - try again'
 }
 
 // --- Toast notification ---
@@ -682,7 +686,7 @@ window.spotifyPlayTrack = async (uri) => {
     console.error("[player.js] window.startSpotifyAudio is MISSING");
   }
 
-  // Set playing state immediately — the user explicitly requested playback.
+  // Set playing state immediately - the user explicitly requested playback.
   PlaybackState.setPlaying(true);
 
   // Save initial pause state for this track so resume knows what to play.
@@ -694,13 +698,13 @@ window.spotifyPlayTrack = async (uri) => {
   try {
     deviceId = await window.electronAPI.getLibrespotDeviceId();
   } catch (e) {
-    showToast("Failed to get Spotify device ID — try reconnecting", "error");
+    showToast("Spotify isn't responding - try reconnecting", "error");
     PlaybackState.reset();
     return { success: false, error: e.message };
   }
 
   if (!deviceId) {
-    showToast("Spotify isn't connected — try reconnecting in Settings", "error");
+    showToast("Spotify isn't connected - try reconnecting in Settings", "error");
     PlaybackState.reset();
     return;
   }
@@ -711,7 +715,7 @@ window.spotifyPlayTrack = async (uri) => {
 
     if (!xfer.success) {
       const errMsg = (xfer.error && xfer.error.includes('404'))
-        ? 'Spotify device not reachable — your network may be blocking Spotify'
+        ? 'Spotify device not reachable - your network may be blocking Spotify'
         : friendlySpotifyError(xfer.error);
       showToast(errMsg, "error");
       PlaybackState.reset();

@@ -41,7 +41,7 @@ function serveStatic(root) {
     const relative = path.relative(path.resolve(root), filePath)
     if (relative.startsWith('..') || path.isAbsolute(relative)) {
       res.writeHead(403)
-      res.end('Forbidden')
+      res.end('Access denied')
       return
     }
 
@@ -107,7 +107,7 @@ function serveStatic(root) {
     fsSync.readFile(filePath, (err, data) => {
       if (err) {
         res.writeHead(err.code === 'ENOENT' ? 404 : 500)
-        res.end(err.code === 'ENOENT' ? 'Not found' : 'Server error')
+        res.end(err.code === 'ENOENT' ? 'File not found' : 'Something went wrong')
         return
       }
       let contentType = mimeTypes[ext] || 'application/octet-stream'
@@ -300,9 +300,13 @@ ipcMain.handle('get-spacing', async () => {
   }
 })
 
-ipcMain.handle('set-spacing', async (_event, presetName) => {
+ipcMain.handle('set-spacing', async (_event, payload) => {
   const configPath = path.join(app.getPath('userData'), 'spacing.json')
-  await fs.writeFile(configPath, JSON.stringify({ presetName }), 'utf8')
+  if (typeof payload === 'object' && payload !== null && typeof payload.percent === 'number') {
+    await fs.writeFile(configPath, JSON.stringify({ percent: payload.percent }), 'utf8')
+  } else {
+    await fs.writeFile(configPath, JSON.stringify({ presetName: payload }), 'utf8')
+  }
   return { success: true }
 })
 

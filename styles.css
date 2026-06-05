@@ -1134,7 +1134,7 @@ footer.player-visible {
   max-width: 800px;
   border: none;
   border-top: 2px solid var(--blade-active);
-  margin: 40px 0 20px 0;
+  margin: 40px 0 60px 0;
 }
 
 /* Library path */
@@ -1223,9 +1223,6 @@ footer.player-visible {
   gap: 12px;
   width: 80%;
   max-width: 800px;
-  margin-top: 40px;
-  border-top: 2px solid var(--blade-active);
-  padding-top: 30px;
 }
 
 #spotifyAuth label {
@@ -1330,7 +1327,6 @@ footer.player-visible {
   flex-direction: column;
   width: 80%;
   max-width: 800px;
-  padding-top: 20px;
 }
 
 #uiSettings label {
@@ -1385,7 +1381,7 @@ footer.player-visible {
   padding: 8px 16px;
   cursor: pointer;
   outline: none;
-  margin-bottom: 0;
+  margin-bottom: 20px;
 }
 
 #theme-select:focus {

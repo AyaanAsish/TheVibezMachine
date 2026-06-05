@@ -67,6 +67,16 @@ function setReconnectFn(fn) {
   reconnectLibrespotFn = fn
 }
 
+function friendlyApiError(status, body) {
+  const b = String(body || '').toLowerCase()
+  if (status === 401 || b.includes('invalid_client')) return 'Invalid Spotify credentials - check your Client ID and Secret'
+  if (status === 403) return 'You don\'t have permission for this on Spotify'
+  if (status === 404) return 'Spotify device not found - your network may be blocking Spotify'
+  if (status === 429) return 'Too many requests - wait a moment and try again'
+  if (status >= 500) return 'Spotify is having issues - try again in a moment'
+  return 'Something went wrong - try again'
+}
+
 function spotifyAuthHtml(title, message) {
   return `<html><head><style>
     body { display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; background: #191414; color: white; }
@@ -105,7 +115,7 @@ async function exchangeSpotifyToken(clientId, clientSecret, code) {
   })
 
   if (!response.ok) {
-    throw new Error(`Token exchange failed: ${response.status}`)
+    throw new Error(friendlyApiError(response.status, await response.text()))
   }
 
   const tokenData = await response.json()
@@ -140,7 +150,7 @@ async function ensureValidToken() {
     })
 
     if (!response.ok) {
-      throw new Error('Token refresh failed: ' + response.status)
+      throw new Error(friendlyApiError(response.status, await response.text()))
     }
 
     const tokenData = await response.json()
@@ -157,10 +167,10 @@ async function ensureValidToken() {
 
 async function spotifyApi(_event, endpoint) {
   if (!spotifyCredentials) {
-    return { success: false, error: 'Not authenticated with Spotify' }
+    return { success: false, error: 'Sign in to Spotify first' }
   }
   if (!endpoint) {
-    return { success: false, error: 'No API endpoint provided' }
+    return { success: false, error: 'Something went wrong - try again' }
   }
 
   try {
@@ -170,19 +180,19 @@ async function spotifyApi(_event, endpoint) {
     })
     if (!res.ok) {
       const errBody = await res.text()
-      return { success: false, error: `Spotify API error ${res.status}: ${errBody}` }
+      return { success: false, error: friendlyApiError(res.status, errBody) }
     }
     const data = await res.json()
     return { success: true, data }
   } catch (err) {
-    if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
-    return { success: false, error: err.message }
+    if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
+    return { success: false, error: 'Something went wrong - try again' }
   }
 }
 
 async function spotifyPut(endpoint, body, query) {
   if (!spotifyCredentials) {
-    return { success: false, error: 'Not authenticated with Spotify' }
+    return { success: false, error: 'Sign in to Spotify first' }
   }
   try {
     await ensureValidToken()
@@ -198,23 +208,23 @@ async function spotifyPut(endpoint, body, query) {
       return { success: true }
     }
     const err = await res.text()
-    return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+    return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
-    if (err.name === 'AbortError') return { success: false, error: 'Request timed out' }
-    return { success: false, error: err.message }
+    if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
+    return { success: false, error: 'Something went wrong - try again' }
   }
 }
 
 async function spotifyTransferPlayback(_event, deviceId, shouldPlay = false) {
   if (!deviceId) {
-    return { success: false, error: 'No device ID provided' }
+    return { success: false, error: 'No Spotify device connected - try reconnecting' }
   }
   return spotifyPut('/me/player', { device_ids: [deviceId], play: shouldPlay })
 }
 
 async function spotifyPlayTrack(_event, uri, deviceId) {
   if (!spotifyCredentials) {
-    return { success: false, error: 'Not authenticated with Spotify' }
+    return { success: false, error: 'Sign in to Spotify first' }
   }
   try {
     await ensureValidToken()
@@ -231,9 +241,9 @@ async function spotifyPlayTrack(_event, uri, deviceId) {
       return { success: true }
     }
     const err = await res.text()
-    return { success: false, error: `Spotify API error ${res.status}: ${err}` }
+    return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
-    return { success: false, error: err.message }
+    return { success: false, error: 'Something went wrong - try again' }
   }
 }
 
@@ -262,15 +272,19 @@ async function spotifyAuth(_event, clientId, clientSecret) {
       }
 
       if (reqUrl.searchParams.has('error')) {
+        const rawError = reqUrl.searchParams.get('error')
+        const friendly = rawError === 'access_denied'
+          ? 'Spotify access was denied - try connecting again'
+          : 'Spotify login failed - try again'
         res.writeHead(400, { 'Content-Type': 'text/html' })
-        res.end(spotifyAuthHtml('Authorization Failed', reqUrl.searchParams.get('error')))
+        res.end(spotifyAuthHtml('Authorization Failed', friendly))
         if (pendingSpotifyAuth) {
           const pending = pendingSpotifyAuth
           pendingSpotifyAuth = null
           spotifyCallbackServer = null
           if (authTimeoutId) clearTimeout(authTimeoutId)
           server.close()
-          pending.resolve({ success: false, error: reqUrl.searchParams.get('error') })
+          pending.resolve({ success: false, error: friendly })
         }
         return
       }
@@ -281,14 +295,14 @@ async function spotifyAuth(_event, clientId, clientSecret) {
 
         if (state !== spotifyAuthState) {
           res.writeHead(403, { 'Content-Type': 'text/html' })
-          res.end(spotifyAuthHtml('Security Error', 'Invalid state parameter.'))
+          res.end(spotifyAuthHtml('Login Check Failed', 'Something went wrong during login - try connecting again'))
           if (pendingSpotifyAuth) {
             const pending = pendingSpotifyAuth
             pendingSpotifyAuth = null
             spotifyCallbackServer = null
             if (authTimeoutId) clearTimeout(authTimeoutId)
             server.close()
-            pending.resolve({ success: false, error: 'Invalid state parameter' })
+            pending.resolve({ success: false, error: 'Login check failed - try connecting again' })
           }
           return
         }
@@ -316,7 +330,7 @@ async function spotifyAuth(_event, clientId, clientSecret) {
           })
       } else {
         res.writeHead(404)
-        res.end('Not found - expected /?code=...')
+        res.end('Page not found')
       }
     })
 
@@ -326,7 +340,7 @@ async function spotifyAuth(_event, clientId, clientSecret) {
         const pending = pendingSpotifyAuth
         pendingSpotifyAuth = null
         if (authTimeoutId) clearTimeout(authTimeoutId)
-        pending.resolve({ success: false, error: 'Callback server error: ' + err.message })
+        pending.resolve({ success: false, error: 'Could not start the login server - try again in a moment' })
       }
       spotifyCallbackServer = null
     })
@@ -340,7 +354,7 @@ async function spotifyAuth(_event, clientId, clientSecret) {
         server.close()
         spotifyCallbackServer = null
         pendingSpotifyAuth = null
-        resolve({ success: false, error: 'Timeout - user did not authorize' })
+        resolve({ success: false, error: 'Spotify login timed out - try again' })
       }
     }, 120000)
   })
@@ -378,7 +392,7 @@ async function spotifyDisconnect() {
     }
     return { success: true }
   } catch (e) {
-    return { success: false, error: e.message }
+    return { success: false, error: 'Could not disconnect from Spotify - try again' }
   }
 }
 
@@ -391,4 +405,4 @@ function registerSpotifyIpcs(ipcMain) {
   ipcMain.handle('spotify-disconnect', spotifyDisconnect)
 }
 
-module.exports = { registerSpotifyIpcs, getSpotifyCredentialsRaw, onAuthSuccess, ensureValidToken, setReconnectFn }
+module.exports = { registerSpotifyIpcs, getSpotifyCredentialsRaw, onAuthSuccess, ensureValidToken, setReconnectFn, fetchWithTimeout }

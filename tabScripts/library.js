@@ -160,7 +160,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
 function playTrack(index) {
   if (!currentPlaylistData) return
 
-  // Restore the local cover — the Explore tab may have overwritten
+  // Restore the local cover - the Explore tab may have overwritten
   // currentPlaylistCover while the user was browsing.
   window.currentPlaylistCover = currentPlaylistData.coverImage
     ? window.toFileUrl(currentPlaylistData.coverImage)
@@ -183,7 +183,7 @@ function playTrack(index) {
 window.setLibraryPath = async (path) => {
   const result = await window.electronAPI.scanFolder(path)
   if (!result) {
-    window.showToast('Folder not found — check the path is correct', 'error')
+    window.showToast('Folder not found - check the path is correct', 'error')
     return
   }
   await window.electronAPI.dbAddPath(path)

@@ -1201,6 +1201,12 @@ footer.player-visible {
   margin-bottom: 20px;
 }
 
+.explore-tracklist-error {
+  color: var(--accent);
+  padding: 10px 15px;
+  font-family: oswald, sans-serif;
+}
+
 /* Spotify Auth */
 #spotifyAuth {
   display: flex;

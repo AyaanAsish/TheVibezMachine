@@ -515,7 +515,7 @@
       if (window.PlaybackState && event.uri !== window.PlaybackState.lastTrackUri) {
         const queueIdx = window.spotifyQueue?.findIndex(t => t.uri === event.uri)
         const cover = (queueIdx != null && queueIdx !== -1 && window.spotifyQueue[queueIdx]?.albumImage) || window.nowPlayingCover
-        window.PlaybackState.setTrackInfo(event.title + ' — ' + event.artist, cover)
+        window.PlaybackState.setTrackInfo(event.title + ' - ' + event.artist, cover)
         window.PlaybackState.lastTrackUri = event.uri
         window.PlaybackState.coverLoadedFromApi = false
         window.spPausePosKey = 'tvm-pause-' + event.uri
@@ -612,7 +612,7 @@
           const cover = (queueIdx != null && queueIdx !== -1 && window.spotifyQueue[queueIdx]?.albumImage)
             || data.item.album?.images?.[0]?.url
             || window.nowPlayingCover
-          window.PlaybackState.setTrackInfo(trackName + ' — ' + trackArtists, cover)
+          window.PlaybackState.setTrackInfo(trackName + ' - ' + trackArtists, cover)
           window.PlaybackState.lastTrackUri = data.item.uri
           window.PlaybackState.coverLoadedFromApi = true
           window.spPausePosKey = 'tvm-pause-' + data.item.uri

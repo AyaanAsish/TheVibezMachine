@@ -7,7 +7,17 @@ TABS.forEach(tab => {
         .addEventListener('click', () => switchTab(tab))
 })
 
+window.isUserTyping = () => {
+    const el = document.activeElement;
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+    if (el.isContentEditable) return true;
+    return false;
+};
+
 document.addEventListener('keydown', (event) => {
+    if (window.isUserTyping()) return;
     const i = TABS.indexOf(activeTab);
     if (i === -1) return;
 

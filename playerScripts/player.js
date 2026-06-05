@@ -187,6 +187,19 @@ document.addEventListener('click', (e) => {
   }
 });
 
+document.addEventListener('keydown', (e) => {
+  if (window.isUserTyping && window.isUserTyping()) return;
+  if (PlaybackState.mode === null) return;
+  if (e.key === '.') {
+    e.preventDefault();
+    footerEl.classList.toggle('player-visible');
+  }
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    if (btnPlay) btnPlay.click();
+  }
+});
+
 // Convert a local filesystem path to a file:// URL
 function toFileUrl(p) {
   if (!p) return "";

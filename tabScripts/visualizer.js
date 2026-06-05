@@ -47,8 +47,23 @@ const initVisualizer = () => {
   resizeCanvas(canvas, visualizer);
 
   const presetKeys = Object.keys(presets);
+  let currentPresetIdx = 0;
+
+  function setPresetByIndex(idx) {
+    if (!presetKeys.length) return;
+    currentPresetIdx = ((idx % presetKeys.length) + presetKeys.length) % presetKeys.length;
+    const name = presetKeys[currentPresetIdx];
+    visualizer.loadPreset(presets[name], 2.0);
+    document.querySelectorAll(".preset-button").forEach((b) => b.classList.remove("active-preset"));
+    const buttons = document.querySelectorAll(".preset-button");
+    if (buttons[currentPresetIdx]) buttons[currentPresetIdx].classList.add("active-preset");
+    const label = document.getElementById("preset-current-name");
+    if (label) label.textContent = name.replace(/_/g, " ");
+    document.getElementById("preset-dropdown").classList.remove("open");
+  }
+
   if (presetKeys.length > 0) {
-    visualizer.loadPreset(presets[presetKeys[0]], 0.0);
+    setPresetByIndex(0);
   }
 
   // PRESET LIST GENERATION (Inside the function scope)
@@ -62,14 +77,8 @@ const initVisualizer = () => {
       btn.className = "preset-button";
       btn.textContent = name.replace(/_/g, " ");
       btn.onclick = () => {
-        visualizer.loadPreset(presets[name], 2.0);
-        document
-          .querySelectorAll(".preset-button")
-          .forEach((b) => b.classList.remove("active-preset"));
-        btn.classList.add("active-preset");
-        const label = document.getElementById("preset-current-name");
-        if (label) label.textContent = name.replace(/_/g, " ");
-        document.getElementById("preset-dropdown").classList.remove("open");
+        const idx = presetKeys.indexOf(name);
+        if (idx !== -1) setPresetByIndex(idx);
       };
       listContainer.appendChild(btn);
     });
@@ -102,6 +111,18 @@ const initVisualizer = () => {
   /**
    * 4. LISTENERS & EXPOSURE
    */
+  document.addEventListener('keydown', (e) => {
+    if (window.isUserTyping && window.isUserTyping()) return;
+    if (activeTab !== 'visualizer') return;
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setPresetByIndex(currentPresetIdx - 1);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setPresetByIndex(currentPresetIdx + 1);
+    }
+  });
+
   window.addEventListener("resize", () => resizeCanvas(canvas, visualizer));
   window.myVisualizer = visualizer;
   window.visualizerAudioContext = audioContext;

@@ -324,7 +324,7 @@ async function spotifyApiPlayPause(action) {
     return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
     if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
-    return { success: false, error: 'Something went wrong - try again' }
+    return { success: false, error: err.message || 'Something went wrong - try again' }
   }
 }
 
@@ -347,7 +347,7 @@ async function spotifyApiSeek(positionMs) {
     return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
     if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
-    return { success: false, error: 'Something went wrong - try again' }
+    return { success: false, error: err.message || 'Something went wrong - try again' }
   }
 }
 
@@ -380,7 +380,7 @@ async function spotifyApiPlayTrack(trackUri, positionMs, uris) {
     return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
     if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
-    return { success: false, error: 'Something went wrong - try again' }
+    return { success: false, error: err.message || 'Something went wrong - try again' }
   }
 }
 
@@ -480,7 +480,7 @@ function registerLibrespotIpcs(ipcMain) {
       return { success: false, error: friendlyApiError(res.status, err) }
     } catch (err) {
       if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
-      return { success: false, error: 'Something went wrong - try again' }
+      return { success: false, error: err.message || 'Something went wrong - try again' }
     }
   })
 
@@ -509,7 +509,7 @@ function registerLibrespotIpcs(ipcMain) {
       return { success: false, error: friendlyApiError(res.status, err) }
     } catch (err) {
       if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
-      return { success: false, error: 'Something went wrong - try again' }
+      return { success: false, error: err.message || 'Something went wrong - try again' }
     }
   })
 
@@ -534,7 +534,7 @@ function registerLibrespotIpcs(ipcMain) {
       return { success: false, error: friendlyApiError(res.status, err) }
     } catch (err) {
       if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
-      return { success: false, error: 'Something went wrong - try again' }
+      return { success: false, error: err.message || 'Something went wrong - try again' }
     }
   })
 

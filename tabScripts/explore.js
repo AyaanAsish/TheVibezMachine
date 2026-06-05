@@ -21,6 +21,7 @@
 
   /* ─── State ─── */
   let credentials = null;
+  let currentUserId = null;
   let savedAlbums = [];
   let savedPlaylists = [];
   let apiError = null;
@@ -33,6 +34,22 @@
   function friendlyError(raw) {
     if (!raw) return 'Something went wrong - try again';
     const m = String(raw).toLowerCase();
+    // Pass through already-friendly backend messages
+    if (m.includes('sign in to spotify first')) return raw;
+    if (m.includes('no spotify device connected')) return raw;
+    if (m.includes('connection timed out')) return raw;
+    if (m.includes('don\'t have permission')) return raw;
+    if (m.includes('spotify device not found')) return raw;
+    if (m.includes('too many requests')) return raw;
+    if (m.includes('invalid spotify credentials')) return raw;
+    if (m.includes('could not start the login server')) return raw;
+    if (m.includes('spotify access was denied')) return raw;
+    if (m.includes('spotify is having issues')) return raw;
+    if (m.includes('login check failed')) return raw;
+    if (m.includes('spotify login timed out')) return raw;
+    if (m.includes('could not disconnect')) return raw;
+    if (m.includes('could not reconnect')) return raw;
+    // Map raw technical patterns
     if (m.includes('not authenticated') || m.includes('sign in')) return 'Sign in to Spotify first';
     if (m.includes('no device')) return 'No Spotify device connected - try reconnecting';
     if (m.includes('timed out') || m.includes('timeout') || m.includes('abort')) return 'Connection timed out - check your internet and try again';
@@ -68,8 +85,15 @@
   async function getCredentials() {
     try {
       credentials = await window.electronAPI.getSpotifyCredentials();
+      if (credentials) {
+        const me = await window.electronAPI.spotifyApi('/me');
+        if (me.success && me.data?.id) {
+          currentUserId = me.data.id;
+        }
+      }
     } catch {
       credentials = null;
+      currentUserId = null;
     }
   }
 
@@ -114,7 +138,7 @@
   }
 
   async function fetchSavedPlaylists() {
-    savedPlaylists = await fetchSavedItems(
+    const allPlaylists = await fetchSavedItems(
       '/me/playlists?limit=50',
       item => ({
         name: item.name,
@@ -122,10 +146,14 @@
         image: item.images?.[0]?.url,
         uri: item.uri,
         id: item.id,
+        ownerId: item.owner?.id,
         type: 'Saved Playlist'
       }),
       { value: isFetchingPlaylists }
     );
+    savedPlaylists = currentUserId
+      ? allPlaylists.filter(p => p.ownerId === currentUserId)
+      : allPlaylists;
   }
 
   /* ─── UI toggles ─── */
@@ -229,7 +257,7 @@
   async function loadPlaylistTracks(playlistId, name, image) {
     if (!credentials || !playlistId) {
       console.warn('[explore] Cannot load playlist: missing credentials or id');
-      renderTracklist([], name, '', image, 'Sign in to Spotify via the Settings tab');
+      renderTracklist([], name, '', image, friendlyError('Not authenticated'));
       return;
     }
 
@@ -245,11 +273,7 @@
         );
         if (!result.success) {
           console.error(`[explore] Playlist tracks API error (offset ${offset}):`, result.error);
-          const is403 = String(result.error).includes('403');
-          const msg = is403
-            ? 'You don\'t have permission for this playlist. Spotify now limits access to playlists you don\'t own. For your own playlists, try reconnecting Spotify in Settings.'
-            : friendlyError(result.error);
-          renderTracklist([], name, '', image, msg);
+          renderTracklist([], name, '', image, friendlyError(result.error));
           return;
         }
 

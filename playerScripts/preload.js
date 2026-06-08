@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   dbAddPath: (folderPath) => ipcRenderer.invoke("db-add-path", folderPath),
   dbGetPaths: () => ipcRenderer.invoke("db-get-paths"),
   dbClearLibrary: () => ipcRenderer.invoke("db-clear-library"),
+  savePlaylistMeta: (folderPath, name, author) =>
+    ipcRenderer.invoke("save-playlist-meta", folderPath, name, author),
   // Spotify OAuth
   spotifyAuth: (clientId, clientSecret) =>
     ipcRenderer.invoke("spotify-auth", clientId, clientSecret),

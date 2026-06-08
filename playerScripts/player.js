@@ -187,6 +187,19 @@ document.addEventListener('click', (e) => {
   }
 });
 
+document.addEventListener('keydown', (e) => {
+  if (window.isUserTyping && window.isUserTyping()) return;
+  if (PlaybackState.mode === null) return;
+  if (e.key === '.') {
+    e.preventDefault();
+    footerEl.classList.toggle('player-visible');
+  }
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    if (btnPlay) btnPlay.click();
+  }
+});
+
 // Convert a local filesystem path to a file:// URL
 function toFileUrl(p) {
   if (!p) return "";
@@ -624,6 +637,22 @@ function stopSpotifyPositionTicker() {
 function friendlySpotifyError(msg) {
   if (!msg) return 'Something went wrong with Spotify'
   const m = msg.toLowerCase()
+  // Pass through already-friendly backend messages
+  if (m.includes('spotify access was denied')) return msg
+  if (m.includes('login check failed')) return msg
+  if (m.includes('invalid spotify credentials')) return msg
+  if (m.includes('connection timed out')) return msg
+  if (m.includes('could not start the login server')) return msg
+  if (m.includes('sign in to spotify first')) return msg
+  if (m.includes('don\'t have permission')) return msg
+  if (m.includes('spotify device not found')) return msg
+  if (m.includes('too many requests')) return msg
+  if (m.includes('no spotify device connected')) return msg
+  if (m.includes('something went wrong')) return msg
+  if (m.includes('spotify login timed out')) return msg
+  if (m.includes('could not disconnect')) return msg
+  if (m.includes('could not reconnect')) return msg
+  // Map raw technical patterns
   if (m.includes('access_denied')) return 'Spotify access was denied - try connecting again'
   if (m.includes('invalid state')) return 'Login check failed - try connecting again'
   if (m.includes('token exchange') || m.includes('401') || m.includes('invalid_client'))

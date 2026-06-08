@@ -253,7 +253,16 @@ ipcMain.handle('scan-folder', async (_event, folderPath, _userTriggered) => {
       }
     }
 
-    return { folderPath, folders, audioFiles, coverImage }
+    let meta = null
+    try {
+      const metaPath = path.join(folderPath, '.vibez-meta.json')
+      const metaRaw = await fs.readFile(metaPath, 'utf8')
+      meta = JSON.parse(metaRaw)
+    } catch (_e) {
+      // no meta file or invalid json
+    }
+
+    return { folderPath, folders, audioFiles, coverImage, meta }
   } catch (err) {
     console.error('Error scanning folder:', err)
     return null
@@ -272,6 +281,17 @@ ipcMain.handle('db-get-paths', () => {
 ipcMain.handle('db-clear-library', () => {
   libraryDb.clearAll()
   return { success: true }
+})
+
+ipcMain.handle('save-playlist-meta', async (_event, folderPath, name, author) => {
+  try {
+    const metaPath = path.join(folderPath, '.vibez-meta.json')
+    await fs.writeFile(metaPath, JSON.stringify({ name, author }, null, 2), 'utf8')
+    return { success: true }
+  } catch (err) {
+    console.error('Failed to save playlist meta:', err)
+    return { success: false, error: err.message }
+  }
 })
 
 ipcMain.handle('get-theme', async () => {

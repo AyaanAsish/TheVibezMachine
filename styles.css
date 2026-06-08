@@ -705,6 +705,16 @@ footer.player-visible {
   margin-top: 2px;
 }
 
+.playlist-name.editing,
+.playlist-artist.editing {
+  pointer-events: auto;
+  outline: none;
+  border-bottom: 1px solid var(--accent);
+  white-space: normal;
+  text-overflow: clip;
+  cursor: text;
+}
+
 .empty-message {
   color: var(--text-muted);
   font-size: 16px;

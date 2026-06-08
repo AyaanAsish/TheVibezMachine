@@ -186,7 +186,7 @@ async function spotifyApi(_event, endpoint) {
     return { success: true, data }
   } catch (err) {
     if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
-    return { success: false, error: 'Something went wrong - try again' }
+    return { success: false, error: err.message || 'Something went wrong - try again' }
   }
 }
 
@@ -211,7 +211,7 @@ async function spotifyPut(endpoint, body, query) {
     return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
     if (err.name === 'AbortError') return { success: false, error: 'Connection timed out - check your internet and try again' }
-    return { success: false, error: 'Something went wrong - try again' }
+    return { success: false, error: err.message || 'Something went wrong - try again' }
   }
 }
 
@@ -243,7 +243,7 @@ async function spotifyPlayTrack(_event, uri, deviceId) {
     const err = await res.text()
     return { success: false, error: friendlyApiError(res.status, err) }
   } catch (err) {
-    return { success: false, error: 'Something went wrong - try again' }
+    return { success: false, error: err.message || 'Something went wrong - try again' }
   }
 }
 

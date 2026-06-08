@@ -38,13 +38,14 @@ async function loadLibrary() {
       for (const folder of result.folders) {
         const folderResult = await window.electronAPI.scanFolder(folder.path)
         if (folderResult && folderResult.audioFiles.length > 0) {
-          createPlaylistCard(libraryGrid, folder.name, folderResult.audioFiles, folderResult.coverImage)
+          const displayName = folderResult.meta?.name || folder.name
+          createPlaylistCard(libraryGrid, displayName, folderResult.audioFiles, folderResult.coverImage, folder.path, folderResult.meta)
           hasPlaylists = true
         }
       }
     } else if (result.audioFiles.length > 0) {
-      const playlistName = libraryPath.replace(/\\/g, '/').split('/').pop()
-      createPlaylistCard(libraryGrid, playlistName, result.audioFiles, result.coverImage)
+      const playlistName = result.meta?.name || libraryPath.replace(/\\/g, '/').split('/').pop()
+      createPlaylistCard(libraryGrid, playlistName, result.audioFiles, result.coverImage, libraryPath, result.meta)
       hasPlaylists = true
     }
   }
@@ -58,7 +59,7 @@ async function loadLibrary() {
 }
 
 // Playlist Card
-function createPlaylistCard(container, name, audioFiles, coverImage) {
+function createPlaylistCard(container, name, audioFiles, coverImage, folderPath, meta) {
   const card = document.createElement('div')
   card.className = 'playlist-card'
 
@@ -74,23 +75,119 @@ function createPlaylistCard(container, name, audioFiles, coverImage) {
     coverImg.innerHTML = '<div class="no-cover">🎵</div>'
   }
 
+  let artistName, albumName
+  if (meta) {
+    albumName = meta.name !== undefined ? meta.name : name
+    artistName = (meta.author !== undefined && meta.author !== '') ? meta.author : 'No Author'
+  } else {
+    const parts = name.split(' - ')
+    if (parts.length > 1) {
+      artistName = parts[0]
+      albumName = parts.slice(1).join(' - ')
+    } else {
+      artistName = 'No Author'
+      albumName = name
+    }
+  }
+
   const info = document.createElement('div')
   info.className = 'playlist-info'
-  const parts = name.split(' - ')
-  const hasAuthor = parts.length > 1
-  const artistName = hasAuthor ? parts[0] : 'No Author'
-  const albumName = hasAuthor ? parts.slice(1).join(' - ') : name
-  info.innerHTML = `<span class="playlist-name">${escapeHtml(albumName)}</span><span class="playlist-artist">${escapeHtml(artistName)}</span>`
 
-  card.addEventListener('click', function(e) {
-    e.preventDefault()
-    e.stopPropagation()
-    loadPlaylist(name, audioFiles, coverImage)
+  const nameSpan = document.createElement('span')
+  nameSpan.className = 'playlist-name'
+  nameSpan.textContent = albumName
+
+  const artistSpan = document.createElement('span')
+  artistSpan.className = 'playlist-artist'
+  artistSpan.textContent = artistName
+
+  info.appendChild(nameSpan)
+  info.appendChild(artistSpan)
+
+  // Single-click vs double-click handling
+  let clickTimer = null
+  card.addEventListener('click', (e) => {
+    if (card.dataset.editing) {
+      if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+      return
+    }
+    if (clickTimer) {
+      clearTimeout(clickTimer)
+      clickTimer = null
+      return
+    }
+    clickTimer = setTimeout(() => {
+      clickTimer = null
+      loadPlaylist(name, audioFiles, coverImage)
+    }, 200)
+  })
+
+  card.addEventListener('dblclick', (e) => {
+    if (clickTimer) {
+      clearTimeout(clickTimer)
+      clickTimer = null
+    }
+    startPlaylistEdit(card, nameSpan, artistSpan, folderPath)
   })
 
   card.appendChild(coverImg)
   card.appendChild(info)
   container.appendChild(card)
+}
+
+function startPlaylistEdit(card, nameSpan, artistSpan, folderPath) {
+  if (nameSpan.isContentEditable) return
+
+  card.dataset.editing = 'true'
+
+  nameSpan.contentEditable = 'true'
+  artistSpan.contentEditable = 'true'
+  nameSpan.classList.add('editing')
+  artistSpan.classList.add('editing')
+  nameSpan.focus()
+
+  const save = async () => {
+    delete card.dataset.editing
+    nameSpan.contentEditable = 'false'
+    artistSpan.contentEditable = 'false'
+    nameSpan.classList.remove('editing')
+    artistSpan.classList.remove('editing')
+
+    const newName = nameSpan.textContent.trim()
+    const newAuthor = artistSpan.textContent.trim()
+
+    try {
+      await window.electronAPI.savePlaylistMeta(folderPath, newName, newAuthor)
+    } catch (err) {
+      console.error('Failed to save playlist meta:', err)
+    }
+
+    nameSpan.removeEventListener('blur', onBlur)
+    artistSpan.removeEventListener('blur', onBlur)
+    nameSpan.removeEventListener('keydown', onKey)
+    artistSpan.removeEventListener('keydown', onKey)
+  }
+
+  const onBlur = () => {
+    setTimeout(() => {
+      const active = document.activeElement
+      if (active !== nameSpan && active !== artistSpan) {
+        save()
+      }
+    }, 0)
+  }
+
+  const onKey = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      save()
+    }
+  }
+
+  nameSpan.addEventListener('blur', onBlur)
+  artistSpan.addEventListener('blur', onBlur)
+  nameSpan.addEventListener('keydown', onKey)
+  artistSpan.addEventListener('keydown', onKey)
 }
 
 // LOAD PLAYLIST

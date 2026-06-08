@@ -350,7 +350,7 @@ footer.player-visible {
   background: transparent;
   writing-mode: vertical-lr;
   direction: rtl;
-  height: 270px;
+  height: 100%;
   width: 16px;
   margin: 0;
   padding: 0;
@@ -808,6 +808,13 @@ footer.player-visible {
   overflow: visible;
 }
 
+#fullscreen {
+  position: absolute;
+  width: 35px;
+  height: 35px;
+  background-color: #8b2020;
+  /*background-image: url("assets/images/fullscreen.png");*/
+}
 
 .visualizer-layer {
   position: absolute;

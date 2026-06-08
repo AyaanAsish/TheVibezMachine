@@ -181,6 +181,16 @@ html {
 }
 
 /* Footer / Player Popup */
+#blur {
+  position: absolute;
+  width: 350%;
+  height: 200%;
+  transform: translate(-50%, -25%);
+  background-color: #000000BF;
+  z-index: -1;
+  pointer-events: none;
+}
+
 footer {
   position: fixed;
   bottom: 44px;
@@ -198,6 +208,7 @@ footer {
   color: var(--text);
   text-align: center;
   transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 2;
 }
 
 footer.player-visible {

@@ -179,32 +179,31 @@
 
     <!-- Player -->
     <footer>
-        <div id="player">
-            <div id="player-top">
-                <div id="player-cover"><span class="no-cover">🎵</span></div>
-                <div id="volume-container">
-                    <div class="sliderBar">
-                        <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
-                    </div>
-                    <div class="controlBtn" id="btn-mute"></div>
+        <div id="blur"></div>
+        <div id="player-top">
+            <div id="player-cover"><span class="no-cover">🎵</span></div>
+            <div id="volume-container">
+                <div class="sliderBar">
+                    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
                 </div>
+                <div class="controlBtn" id="btn-mute"></div>
             </div>
-            <div id="track-info">
-                <span id="track-name">No track loaded</span>
+        </div>
+        <div id="track-info">
+            <span id="track-name">No track loaded</span>
+        </div>
+        <div id="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+        <div id="controls">
+            <div class="controlBtn" id="btn-prev"></div>
+            <div id="time-row">
+                <span id="current-time">0:00</span>
+                <span>/</span>
+                <span id="duration">0:00</span>
             </div>
-            <div id="progress-bar">
-                <div id="progress-fill"></div>
-            </div>
-            <div id="controls">
-                <div class="controlBtn" id="btn-prev"></div>
-                <div id="time-row">
-                    <span id="current-time">0:00</span>
-                    <span>/</span>
-                    <span id="duration">0:00</span>
-                </div>
-                <div class="controlBtn" id="btn-play"></div>
-                <div class="controlBtn" id="btn-next"></div>
-            </div>
+            <div class="controlBtn" id="btn-play"></div>
+            <div class="controlBtn" id="btn-next"></div>
         </div>
     </footer>
     <div id="footer-trigger">

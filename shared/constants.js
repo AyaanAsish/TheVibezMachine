@@ -28,14 +28,14 @@ const THEMES = {
   "Springy Vibez": {
     "--blade": "#77867F",
     "--blade-active": "#445D52",
-    "--accent": "#d69ec4",
-    "--accent-dark": "#a0658d",
+    "--accent": "#dcafcd",
+    "--accent-dark": "#b586a5",
     "--highlight": "#445D52",
     "--bg": "#77867F",
     "--body": "#2f3f38",
     "--card": "#445D52",
     "--text": "#ffffff",
-    "--text-muted": "#d69ec4",
+    "--text-muted": "#dcafcd",
   }
 }
 

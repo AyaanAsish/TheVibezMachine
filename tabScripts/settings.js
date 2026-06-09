@@ -1,3 +1,19 @@
+function isHexLight(hexCode) {
+  let cleanHex = hexCode.replace('#', '');
+
+  if (cleanHex.length === 3) {
+    cleanHex = cleanHex.split('').map(char => char + char).join('');
+  }
+
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+
+  const luminance = (r * 0.299) + (g * 0.587) + (b * 0.114);
+
+  return luminance > 128;
+}
+
 function renderThemeStrip(themeName) {
   const strip = document.getElementById('theme-strip')
   if (!strip) return
@@ -12,7 +28,9 @@ function renderThemeStrip(themeName) {
     swatch.style.backgroundColor = value
 
     const label = document.createElement('span')
-    label.className = 'theme-swatch-label'
+    label.classList.add('theme-swatch-label') 
+    if (isHexLight(value)) label.classList.add('dark-text')
+    else label.classList.add('light-text')
     label.textContent = token.replace(/^--/, '').replace(/-/g, ' ')
 
     swatch.appendChild(label)

@@ -459,7 +459,7 @@ footer.player-visible {
 /* Library Tab */
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, 150px);
   gap: var(--grid-gap);
   padding: 20px;
   overflow-y: auto;
@@ -467,6 +467,7 @@ footer.player-visible {
   width: calc(100% - 184px);
   height: 100%;
   align-content: start;
+  justify-content: start;
 }
 
 .library-grid .playlist-card {

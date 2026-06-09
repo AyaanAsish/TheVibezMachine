@@ -10,7 +10,7 @@ INSTRUNCTIONS.md
 .spotify-auth.json
 DB/*.db
 vendor/node-librespot/node_modules/
-handpicked.txt 
+handpicked.txt
 forge.config.js
 out/
 dist/

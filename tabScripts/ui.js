@@ -70,25 +70,8 @@ function switchTab(newTab) {
             const newItems = document.querySelector('#' + newTab + ' .items')
             if (newItems) newItems.classList.add('items-visible')
             if (newTab === 'settings' && window.renderThemeStrip) renderThemeStrip()
-            if (newTab === 'settings' && window.SpacingEngine && document.getElementById('spacing-thumb')) {
-              const SNAP = ['Compact', 'Default', 'Relaxed']
-              let pct = 50
-              let label = 'Default'
-              const blend = window.SpacingEngine.getBlendPercent()
-              if (typeof blend === 'number') {
-                pct = blend
-                const i = Math.round(pct / 100 * (SNAP.length - 1))
-                label = SNAP[Math.max(0, Math.min(SNAP.length - 1, i))]
-              } else {
-                const saved = window.SpacingEngine.getPresetName() || 'Default'
-                const i = SNAP.indexOf(saved)
-                pct = i === -1 ? 50 : (i / (SNAP.length - 1)) * 100
-                label = saved
-              }
-              document.getElementById('spacing-thumb').style.left = pct + '%'
-              document.getElementById('spacing-fill').style.width = pct + '%'
-              const lbl = document.getElementById('spacing-label')
-              if (lbl) lbl.textContent = label
+            if (newTab === 'settings' && window.syncSpacingSlider) {
+              window.syncSpacingSlider()
             }
         }, 50)
     }, 50)

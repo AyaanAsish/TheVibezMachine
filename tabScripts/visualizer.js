@@ -22,6 +22,17 @@ const initVisualizer = () => {
   const bcBase = window.butterchurn?.default || window.butterchurn;
   if (!bcBase) return;
 
+  const favPresets = [
+    "flexi + amandio c - organic12-3d-2.milk",
+    "martin - castle in the air",
+    "martin - ghost city",
+    "martin - mandelbox explorer - high speed demo version",
+    "martin - mucus cervix",
+    "martin - stormy sea (2010 update)",
+    "Cope - The Neverending Explosion of Red Liquid Fire",
+    "_Geiss - Artifact 01",
+  ];
+
   let presets = {};
   try {
     const RawPresets =
@@ -46,24 +57,38 @@ const initVisualizer = () => {
 
   resizeCanvas(canvas, visualizer);
 
-  const presetKeys = Object.keys(presets);
+  // 2. Map and filter your custom list against what's loaded in the library
+  const presetKeys = favPresets.filter((name) => presets[name] !== undefined);
   let currentPresetIdx = 0;
+
+  // 3. Keep your fallback block exactly as is just in case a typo slips through later!
+  if (presetKeys.length === 0) {
+    console.log(
+      "[Visualizer] No custom presets matched. Defaulting to all available keys...",
+    );
+    presetKeys.push(...Object.keys(presets));
+  }
+
+  // 4. Load the very first preset from your handpicked list on start
+  if (presetKeys.length > 0) {
+    visualizer.loadPreset(presets[presetKeys[0]], 0.0);
+  }
 
   function setPresetByIndex(idx) {
     if (!presetKeys.length) return;
-    currentPresetIdx = ((idx % presetKeys.length) + presetKeys.length) % presetKeys.length;
+    currentPresetIdx =
+      ((idx % presetKeys.length) + presetKeys.length) % presetKeys.length;
     const name = presetKeys[currentPresetIdx];
     visualizer.loadPreset(presets[name], 2.0);
-    document.querySelectorAll(".preset-button").forEach((b) => b.classList.remove("active-preset"));
+    document
+      .querySelectorAll(".preset-button")
+      .forEach((b) => b.classList.remove("active-preset"));
     const buttons = document.querySelectorAll(".preset-button");
-    if (buttons[currentPresetIdx]) buttons[currentPresetIdx].classList.add("active-preset");
+    if (buttons[currentPresetIdx])
+      buttons[currentPresetIdx].classList.add("active-preset");
     const label = document.getElementById("preset-current-name");
     if (label) label.textContent = name.replace(/_/g, " ");
     document.getElementById("preset-dropdown").classList.remove("open");
-  }
-
-  if (presetKeys.length > 0) {
-    setPresetByIndex(0);
   }
 
   // PRESET LIST GENERATION (Inside the function scope)
@@ -111,13 +136,13 @@ const initVisualizer = () => {
   /**
    * 4. LISTENERS & EXPOSURE
    */
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener("keydown", (e) => {
     if (window.isUserTyping && window.isUserTyping()) return;
-    if (activeTab !== 'visualizer') return;
-    if (e.key === 'ArrowUp') {
+    if (activeTab !== "visualizer") return;
+    if (e.key === "ArrowUp") {
       e.preventDefault();
       setPresetByIndex(currentPresetIdx - 1);
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === "ArrowDown") {
       e.preventDefault();
       setPresetByIndex(currentPresetIdx + 1);
     }

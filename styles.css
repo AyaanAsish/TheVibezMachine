@@ -32,6 +32,7 @@
 /* General Styles */
 body,
 html {
+  cursor: auto;
   margin: 0;
   padding: 0;
   width: 100%;
@@ -43,6 +44,7 @@ html {
 }
 
 #app {
+  cursor: auto;
   display: flex;
   flex: 1;
   background-image: radial-gradient(var(--body), var(--bg));
@@ -65,6 +67,7 @@ html {
 
 /* Content Area */
 #content {
+  cursor: auto;
   display: flex;
   align-items: stretch;
   padding: 20px 20px 20px 66px;
@@ -85,7 +88,7 @@ html {
 
 /* Tabs */
 .tab {
-  cursor: pointer;
+  cursor: auto;
   flex-grow: 1;
   margin-right: 10px;
   padding: 24px 22px 24px 56px;
@@ -810,11 +813,15 @@ footer.player-visible {
 }
 
 #fullscreen {
+  cursor: pointer;
   position: absolute;
-  width: 35px;
-  height: 35px;
-  background-color: #8b2020;
-  /*background-image: url("assets/images/fullscreen.png");*/
+  left: calc(100% - 35px);
+  width: 30px;
+  height: 30px;
+  top: 5px;
+  background-image: url("assets/images/fullscreen.png");
+  background-size: cover;
+  z-index: 2;
 }
 
 .visualizer-layer {

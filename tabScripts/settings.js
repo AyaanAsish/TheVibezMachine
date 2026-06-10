@@ -74,7 +74,7 @@ function initSettings() {
   // Spacing slider
   const SNAP_POINTS = ['Compact', 'Default', 'Relaxed']
   const SNAP_PCTS   = [0, 50, 100]
-  const SNAP_RADIUS = 5 // percent
+  const SNAP_RADIUS = 3 // percent
 
   const thumb = document.getElementById('spacing-thumb')
   const fill  = document.getElementById('spacing-fill')

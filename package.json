@@ -44,6 +44,6 @@
     "electron-squirrel-startup": "^1.0.1"
   },
   "optionalDependencies": {
-    "@lox-audioserver/node-librespot": "file:vendor/node-librespot"
+    "@lox-audioserver/node-librespot": "^0.4.3"
   }
 }

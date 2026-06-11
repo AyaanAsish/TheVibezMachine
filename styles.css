@@ -1481,11 +1481,6 @@ body.fullscreen-active #fullscreen {
   border-color: var(--text);
 }
 
-#theme-select option {
-  background-color: var(--blade);
-  color: var(--text);
-}
-
 #spacing-slider-wrap {
   width: 100%;
   display: flex;

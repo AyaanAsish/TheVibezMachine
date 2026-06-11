@@ -1424,10 +1424,19 @@ footer.player-visible {
   cursor: pointer;
   outline: none;
   margin-bottom: 20px;
+
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 #theme-select:focus {
   border-color: var(--text);
+}
+
+#theme-select option {
+  background-color: var(--blade);
+  color: var(--text);
 }
 
 #spacing-slider-wrap {

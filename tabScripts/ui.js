@@ -50,27 +50,38 @@ function positionBlades(animate) {
     })
 }
 
+let switchTimerA = null
+let switchTimerB = null
+
 function switchTab(newTab) {
     if (newTab === activeTab) return
 
-    // Fade out old content
-    const oldItems = document.querySelector('#' + activeTab + ' .items')
-    if (oldItems) oldItems.classList.remove('items-visible')
+    // Cancel any in-flight timeouts from a previous rapid switch
+    if (switchTimerA) { clearTimeout(switchTimerA); switchTimerA = null }
+    if (switchTimerB) { clearTimeout(switchTimerB); switchTimerB = null }
 
-    document.getElementById(activeTab).classList.remove('active')
+    // Remove active + visible from ALL tabs, not just the current one
+    // (handles rapid-switch race where a previous timeout already
+    //  added .active to a tab before this call got to run)
+    TABS.forEach(tab => {
+        document.getElementById(tab).classList.remove('active')
+        const items = document.querySelector('#' + tab + ' .items')
+        if (items) items.classList.remove('items-visible')
+    })
 
-    // Start blade slide animation
-    setTimeout(() => {
-        activeTab = newTab
-        document.getElementById(newTab).classList.add('active')
+    const target = newTab
+    switchTimerA = setTimeout(() => {
+        switchTimerA = null
+        activeTab = target
+        document.getElementById(target).classList.add('active')
         positionBlades(true)
 
-        // After blade sweep finishes, fade in new content
-        setTimeout(() => {
-            const newItems = document.querySelector('#' + newTab + ' .items')
+        switchTimerB = setTimeout(() => {
+            switchTimerB = null
+            const newItems = document.querySelector('#' + target + ' .items')
             if (newItems) newItems.classList.add('items-visible')
-            if (newTab === 'settings' && window.renderThemeStrip) renderThemeStrip()
-            if (newTab === 'settings' && window.syncSpacingSlider) {
+            if (target === 'settings' && window.renderThemeStrip) renderThemeStrip()
+            if (target === 'settings' && window.syncSpacingSlider) {
               window.syncSpacingSlider()
             }
         }, 50)

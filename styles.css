@@ -815,13 +815,60 @@ footer.player-visible {
 #fullscreen {
   cursor: pointer;
   position: absolute;
-  left: calc(100% - 35px);
+  right: 0;
   width: 30px;
   height: 30px;
   top: 5px;
-  background-image: url("assets/images/fullscreen.png");
-  background-size: cover;
-  z-index: 2;
+  background: transparent url("assets/images/fullscreen.png") center / cover no-repeat;
+  border: none;
+  z-index: 101;
+}
+
+/* Fullscreen visualizer mode — hide chrome, show only preset bar + canvas */
+body.fullscreen-active .bladeStrip,
+body.fullscreen-active #footer-trigger,
+body.fullscreen-active footer {
+  display: none !important;
+}
+
+body.fullscreen-active #app {
+  border-radius: 0;
+}
+
+body.fullscreen-active #content {
+  padding: 0;
+  overflow: hidden;
+}
+
+body.fullscreen-active #content #visualizer {
+  position: fixed !important;
+  inset: 0;
+  padding: 0;
+  z-index: 1;
+}
+
+body.fullscreen-active #visualizer .items {
+  left: 0;
+  width: 100%;
+}
+
+body.fullscreen-active .visualizer-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+body.fullscreen-active #visCanvas {
+  width: 100vw;
+  height: 100vh;
+}
+
+body.fullscreen-active #preset-bar {
+  z-index: 101;
+}
+
+body.fullscreen-active #fullscreen {
+  z-index: 101;
 }
 
 .visualizer-layer {

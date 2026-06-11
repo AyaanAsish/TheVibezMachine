@@ -151,6 +151,24 @@ const initVisualizer = () => {
   window.addEventListener("resize", () => resizeCanvas(canvas, visualizer));
   window.myVisualizer = visualizer;
   window.visualizerAudioContext = audioContext;
+
+  // Fullscreen toggle
+  const fullscreenBtn = document.getElementById("fullscreen");
+  if (fullscreenBtn && window.electronAPI) {
+    fullscreenBtn.addEventListener("click", () => {
+      window.electronAPI.toggleFullscreen().catch(() => {});
+    });
+
+    window.electronAPI.onFullscreenChange((isFullscreen) => {
+      if (isFullscreen) {
+        document.body.classList.add("fullscreen-active");
+      } else {
+        document.body.classList.remove("fullscreen-active");
+      }
+      // Canvas may need resizing after fullscreen transition
+      setTimeout(() => resizeCanvas(canvas, visualizer), 100);
+    });
+  }
 };
 
 if (document.readyState === "complete") {

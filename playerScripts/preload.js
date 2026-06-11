@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 const pcmCbs = new Set();
 const eventCbs = new Set();
 const pollCbs = new Set();
+const fullscreenCbs = new Set();
 
 contextBridge.exposeInMainWorld("electronAPI", {
   openFolder: () => ipcRenderer.invoke("open-folder"),
@@ -58,6 +59,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     pollCbs.add(callback);
     ipcRenderer.on("spotify-poll", (_, result) => {
       try { callback(result); } catch (e) { console.error('[preload] onSpotifyPoll error:', e); }
+    });
+  },
+  // Fullscreen
+  toggleFullscreen: () => ipcRenderer.invoke("toggle-fullscreen"),
+  onFullscreenChange: (callback) => {
+    if (fullscreenCbs.has(callback)) return;
+    fullscreenCbs.add(callback);
+    ipcRenderer.on("fullscreen-changed", (_, isFullscreen) => {
+      try { callback(isFullscreen); } catch (e) { console.error('[preload] onFullscreenChange error:', e); }
     });
   },
 });

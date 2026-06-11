@@ -156,6 +156,14 @@ function createWindow(port) {
     console.log(`[Renderer] ${message}`)
   })
 
+  // Forward native fullscreen state changes to renderer
+  win.on('enter-full-screen', () => {
+    win.webContents.send('fullscreen-changed', true)
+  })
+  win.on('leave-full-screen', () => {
+    win.webContents.send('fullscreen-changed', false)
+  })
+
   return win
 }
 
@@ -328,6 +336,16 @@ ipcMain.handle('set-spacing', async (_event, payload) => {
     await fs.writeFile(configPath, JSON.stringify({ presetName: payload }), 'utf8')
   }
   return { success: true }
+})
+
+ipcMain.handle('toggle-fullscreen', () => {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (win) {
+    const willBeFullscreen = !win.isFullScreen()
+    win.setFullScreen(willBeFullscreen)
+    return { isFullscreen: willBeFullscreen }
+  }
+  return { isFullscreen: false }
 })
 
 registerSpotifyIpcs(ipcMain)

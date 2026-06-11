@@ -285,6 +285,12 @@ footer.player-visible {
   object-fit: cover;
 }
 
+#player-cover .no-cover {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+}
+
 #track-info {
   width: 100%;
   overflow: hidden;
@@ -681,8 +687,9 @@ footer.player-visible {
 }
 
 .playlist-cover .no-cover {
-  font-size: 40px;
-  font-family: -apple-system, "Segoe UI Emoji", sans-serif;
+  width: 55px;
+  height: 55px;
+  object-fit: contain;
 }
 
 .playlist-info {
@@ -743,11 +750,9 @@ footer.player-visible {
 }
 
 .album-cover-large.no-cover {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 60px;
-  font-family: -apple-system, "Segoe UI Emoji", sans-serif;
+  object-fit: contain;
+  padding: 50px;
+  box-sizing: border-box;
 }
 
 .album-name {
@@ -869,6 +874,23 @@ body.fullscreen-active #preset-bar {
 
 body.fullscreen-active #fullscreen {
   z-index: 101;
+}
+
+/* Fullscreen idle — hide chrome after mouse inactivity */
+body.fullscreen-active #preset-bar,
+body.fullscreen-active #fullscreen {
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+body.fullscreen-active.fullscreen-idle #preset-bar,
+body.fullscreen-active.fullscreen-idle #fullscreen {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.fullscreen-active.fullscreen-idle {
+  cursor: none;
 }
 
 .visualizer-layer {

@@ -26,7 +26,7 @@ function updatePlayerCover(url) {
   if (url) {
     container.innerHTML = `<img src="${url}" alt="Album cover" />`;
   } else {
-    container.innerHTML = '<span class="no-cover">🎵</span>';
+    container.innerHTML = '<img src="assets/images/no_cover.png" alt="No cover" class="no-cover">';
   }
 }
 window.updatePlayerCover = updatePlayerCover;

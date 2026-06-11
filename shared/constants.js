@@ -13,7 +13,7 @@ const THEMES = {
     "--text": "#ffffff",
     "--text-muted": "#888888",
   },
-  "Retro Vibez": {
+  "Vampy Vibez": {
     "--blade": "#7e7e7e",
     "--blade-active": "#9F2042",
     "--accent": "#9F2042",

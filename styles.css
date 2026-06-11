@@ -807,7 +807,7 @@ footer.player-visible {
 
 #visualizer .items {
   left: 54px;
-  width: calc(100% - 180px);
+  width: calc(100% - 182px);
   position: relative;
   overflow: visible;
 }
@@ -1479,11 +1479,6 @@ body.fullscreen-active #fullscreen {
 
 #theme-select:focus {
   border-color: var(--text);
-}
-
-#theme-select option {
-  background-color: var(--blade);
-  color: var(--text);
 }
 
 #spacing-slider-wrap {

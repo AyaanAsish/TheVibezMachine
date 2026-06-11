@@ -23,6 +23,12 @@
   "build": {
     "appId": "com.ayyan.thevibizmachine",
     "productName": "TheVibezMachine",
+    "files": [
+      "**/*",
+      "!.spotify-auth.json",
+      "!.spotify-device-id.json",
+      "!.spotify-librespot-creds.json"
+    ],
     "win": {
       "target": "portable"
     },

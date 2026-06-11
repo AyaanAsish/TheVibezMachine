@@ -8,6 +8,8 @@ INSTRUNCTIONS.md
 /idea
 **/.DS_Store
 .spotify-auth.json
+.spotify-device-id.json
+.spotify-librespot-creds.json
 DB/*.db
 vendor/node-librespot/node_modules/
 handpicked.txt

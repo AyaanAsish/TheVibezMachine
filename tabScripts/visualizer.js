@@ -159,15 +159,33 @@ const initVisualizer = () => {
       window.electronAPI.toggleFullscreen().catch(() => {});
     });
 
+    // Fullscreen idle: hide preset bar + fullscreen button after 2.5s of no mouse movement
+    let fullscreenIdleTimer = null;
+    const FULLSCREEN_IDLE_MS = 2500;
+
+    const resetFullscreenIdle = () => {
+      if (!document.body.classList.contains("fullscreen-active")) return;
+      document.body.classList.remove("fullscreen-idle");
+      clearTimeout(fullscreenIdleTimer);
+      fullscreenIdleTimer = setTimeout(() => {
+        document.body.classList.add("fullscreen-idle");
+      }, FULLSCREEN_IDLE_MS);
+    };
+
     window.electronAPI.onFullscreenChange((isFullscreen) => {
       if (isFullscreen) {
         document.body.classList.add("fullscreen-active");
+        resetFullscreenIdle();
       } else {
         document.body.classList.remove("fullscreen-active");
+        document.body.classList.remove("fullscreen-idle");
+        clearTimeout(fullscreenIdleTimer);
       }
       // Canvas may need resizing after fullscreen transition
       setTimeout(() => resizeCanvas(canvas, visualizer), 100);
     });
+
+    document.addEventListener("mousemove", resetFullscreenIdle);
   }
 };
 

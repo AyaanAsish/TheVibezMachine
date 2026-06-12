@@ -72,7 +72,7 @@ function createPlaylistCard(container, name, audioFiles, coverImage, folderPath,
     img.alt = name
     coverImg.appendChild(img)
   } else {
-    coverImg.innerHTML = '<div class="no-cover">🎵</div>'
+    coverImg.innerHTML = '<img src="assets/images/no_cover.png" alt="No cover" class="no-cover">'
   }
 
   let artistName, albumName
@@ -237,7 +237,7 @@ function loadPlaylist(name, audioFiles, coverImage) {
     `
   } else {
     infoCard.innerHTML = `
-      <div class="album-cover-large no-cover">🎵</div>
+      <img src="assets/images/no_cover.png" alt="No cover" class="album-cover-large no-cover">
       <div class="album-name">${escapeHtml(name)}</div>
       <div class="album-artist">${audioFiles.length} tracks</div>
       <button class="playlist-play-btn">Play</button>

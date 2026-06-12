@@ -205,7 +205,7 @@ const getAccentColor = () => {
 
     const coverHtml = image
       ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" class="album-cover-large">`
-      : `<div class="album-cover-large no-cover">🎵</div>`;
+      : `<img src="assets/images/no_cover.png" alt="No cover" class="album-cover-large no-cover">`;
 
     card.innerHTML = `
       ${coverHtml}

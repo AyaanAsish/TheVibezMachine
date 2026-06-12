@@ -75,6 +75,11 @@ function createPlaylistCard(container, name, audioFiles, coverImage, folderPath,
     coverImg.innerHTML = '<img src="assets/images/no_cover.png" alt="No cover" class="no-cover">'
   }
 
+  const editBadge = document.createElement('span')
+  editBadge.className = 'edit-badge'
+  editBadge.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`
+  coverImg.appendChild(editBadge)
+
   let artistName, albumName
   if (meta) {
     albumName = meta.name !== undefined ? meta.name : name
@@ -118,7 +123,9 @@ function createPlaylistCard(container, name, audioFiles, coverImage, folderPath,
     }
     clickTimer = setTimeout(() => {
       clickTimer = null
-      loadPlaylist(name, audioFiles, coverImage)
+      const currentName = nameSpan.childNodes[0]?.textContent?.trim() || nameSpan.textContent.trim()
+      const currentArtist = artistSpan.textContent.trim()
+      loadPlaylist(currentName, audioFiles, coverImage, currentArtist)
     }, 200)
   })
 
@@ -191,7 +198,7 @@ function startPlaylistEdit(card, nameSpan, artistSpan, folderPath) {
 }
 
 // LOAD PLAYLIST
-function loadPlaylist(name, audioFiles, coverImage) {
+function loadPlaylist(name, audioFiles, coverImage, artist) {
   currentPlaylistData = { name, audioFiles, coverImage }
   window.currentPlaylistCover = coverImage
     ? window.toFileUrl(coverImage)
@@ -228,18 +235,20 @@ function loadPlaylist(name, audioFiles, coverImage) {
   const infoCard = document.createElement('div')
   infoCard.className = 'album-info-card'
 
+  const artistLine = artist ? `${escapeHtml(artist)} · ${audioFiles.length} tracks` : `${audioFiles.length} tracks`
+
   if (coverImage) {
     infoCard.innerHTML = `
       <img src="${window.toFileUrl(coverImage)}" alt="${escapeHtml(name)}" class="album-cover-large">
       <div class="album-name">${escapeHtml(name)}</div>
-      <div class="album-artist">${audioFiles.length} tracks</div>
+      <div class="album-artist">${artistLine}</div>
       <button class="playlist-play-btn">Play</button>
     `
   } else {
     infoCard.innerHTML = `
       <img src="assets/images/no_cover.png" alt="No cover" class="album-cover-large no-cover">
       <div class="album-name">${escapeHtml(name)}</div>
-      <div class="album-artist">${audioFiles.length} tracks</div>
+      <div class="album-artist">${artistLine}</div>
       <button class="playlist-play-btn">Play</button>
     `
   }

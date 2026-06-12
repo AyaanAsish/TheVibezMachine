@@ -18,6 +18,7 @@ window.isUserTyping = () => {
 
 document.addEventListener('keydown', (event) => {
     if (window.isUserTyping()) return;
+    if (document.body.classList.contains('fullscreen-active')) return;
     const i = TABS.indexOf(activeTab);
     if (i === -1) return;
 
@@ -55,6 +56,7 @@ let switchTimerB = null
 
 function switchTab(newTab) {
     if (newTab === activeTab) return
+    if (document.body.classList.contains('fullscreen-active')) return
 
     // Cancel any in-flight timeouts from a previous rapid switch
     if (switchTimerA) { clearTimeout(switchTimerA); switchTimerA = null }

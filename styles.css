@@ -678,6 +678,32 @@ footer.player-visible {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.edit-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+  color: var(--accent);
+}
+
+.playlist-card:has(.playlist-info:hover) .edit-badge {
+  opacity: 1;
+}
+
+.playlist-card[data-editing] .edit-badge {
+  opacity: 0;
 }
 
 .playlist-cover img {
@@ -696,6 +722,7 @@ footer.player-visible {
   margin-top: 14px;
   text-align: center;
   margin-bottom: 12px;
+  pointer-events: auto;
 }
 
 .playlist-name {

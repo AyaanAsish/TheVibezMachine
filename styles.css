@@ -145,7 +145,7 @@ html {
   position: absolute;
   background: var(--blade);
   color: var(--body);
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -574,7 +574,7 @@ footer.player-visible {
   display: flex;
   padding: 20px;
   overflow-y: auto;
-  overflow-x: 0;
+  overflow-x: hidden;
   min-width: 250px;
   width: calc(65% - 64px);
   max-height: calc(100vh - 300px);
@@ -601,7 +601,7 @@ footer.player-visible {
 
 .library-back-btn {
   color: var(--accent);
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   font-size: 16px;
   cursor: pointer;
   margin-bottom: 15px;
@@ -719,6 +719,7 @@ footer.player-visible {
 }
 
 .playlist-info {
+  cursor: pointer;
   margin-top: 14px;
   text-align: center;
   margin-bottom: 12px;
@@ -728,7 +729,7 @@ footer.player-visible {
 .playlist-name {
   color: var(--text);
   font-size: 14px;
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -738,7 +739,7 @@ footer.player-visible {
 .playlist-artist {
   color: var(--text-muted);
   font-size: 12px;
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   display: block;
   margin-top: 2px;
 }
@@ -784,7 +785,7 @@ footer.player-visible {
 
 .album-name {
   color: var(--text);
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   font-size: 18px;
   text-align: center;
 }
@@ -798,7 +799,7 @@ footer.player-visible {
   background: var(--accent);
   color: black;
   border: none;
-  font-family: "Oswald", sans-serif;
+  font-family: oswald, sans-serif;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -953,7 +954,7 @@ body.fullscreen-active.fullscreen-idle {
   border: none;
   border-top: none;
   color: var(--accent);
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   font-size: 13px;
   letter-spacing: 0.1em;
   padding: 6px 20px;
@@ -1011,7 +1012,7 @@ body.fullscreen-active.fullscreen-idle {
   color: #aaa;
   padding: 8px 12px;
   text-align: left;
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1280,7 +1281,7 @@ body.fullscreen-active.fullscreen-idle {
 
 #libPath label {
   color: var(--text);
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   font-size: 16px;
   letter-spacing: 0.05em;
 }
@@ -1293,7 +1294,7 @@ body.fullscreen-active.fullscreen-idle {
   border: 4px solid var(--highlight);
   border-radius: 20px;
   padding: 10px;
-  font-family: monospace;
+  font-family: source_serif_4;
   font-size: 14px;
   resize: none;
   white-space: nowrap;
@@ -1311,7 +1312,7 @@ body.fullscreen-active.fullscreen-idle {
   background: var(--accent);
   color: black;
   border: solid var(--body) 4px;
-  font-family: "Oswald", sans-serif;
+  font-family: oswald, sans-serif;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -1359,7 +1360,7 @@ body.fullscreen-active.fullscreen-idle {
 
 #spotifyAuth label {
   color: var(--text);
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   font-size: 16px;
   letter-spacing: 0.05em;
 }
@@ -1372,7 +1373,7 @@ body.fullscreen-active.fullscreen-idle {
   border: 4px solid var(--highlight);
   border-radius: 20px;
   padding: 10px;
-  font-family: monospace;
+  font-family: source_serif_4;
   font-size: 14px;
   resize: none;
   white-space: nowrap;
@@ -1390,7 +1391,7 @@ body.fullscreen-active.fullscreen-idle {
   background: #94c798;
   color: var(--text);
   border: solid var(--body) 4px;
-  font-family: "Oswald", sans-serif;
+  font-family: oswald, sans-serif;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -1463,7 +1464,7 @@ body.fullscreen-active.fullscreen-idle {
 
 #uiSettings label {
   color: var(--text);
-  font-family: oswald;
+  font-family: oswald, sans-serif;
   font-size: 16px;
   letter-spacing: 0.05em;
   margin-bottom: 2px;
